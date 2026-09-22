@@ -6,9 +6,12 @@ import { AuthProvider, useAuth } from '@/auth/auth-provider'
 import { SignInPage } from '@/auth/sign-in-page'
 import { HomePage } from '@/pages/home-page'
 import { MorePage } from '@/pages/more-page'
+import { OccasionDashboardPage } from '@/pages/occasion-dashboard-page'
+import { OccasionsListPage } from '@/pages/occasions-list-page'
 import { PeoplePage } from '@/pages/people-page'
 import { PersonProfilePage } from '@/pages/person-profile-page'
 import { PlaceholderPage } from '@/pages/placeholder-page'
+import { OccasionProvider } from '@/occasions/occasion-context'
 import { ThemeProvider } from '@/theme/theme-provider'
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -56,13 +59,17 @@ export default function App() {
             <Route
               element={
                 <RequireAuth>
-                  <AppShell />
+                  <OccasionProvider>
+                    <AppShell />
+                  </OccasionProvider>
                 </RequireAuth>
               }
             >
               <Route index element={<HomePage />} />
               <Route path="people" element={<PeoplePage />} />
               <Route path="people/:id" element={<PersonProfilePage />} />
+              <Route path="occasions" element={<OccasionsListPage />} />
+              <Route path="occasions/:id" element={<OccasionDashboardPage />} />
               <Route
                 path="gifts"
                 element={<PlaceholderPage title="Gifts" note="Gift tracking is coming in a later phase." />}

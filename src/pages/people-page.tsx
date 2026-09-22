@@ -1,4 +1,4 @@
-import { Cake, Plus } from 'lucide-react'
+import { Cake, Check, Plus } from 'lucide-react'
 import * as React from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -23,6 +23,7 @@ import { daysUntilNextBirthday, formatMonthDay, parseDateOnly } from '@/lib/date
 import { supabase } from '@/lib/supabase'
 import { getInitials } from '@/lib/utils'
 import type { Database } from '@/lib/database.types'
+import { useOccasions } from '@/occasions/occasion-context'
 
 type Person = Database['public']['Tables']['people']['Row']
 
@@ -35,10 +36,12 @@ export function PeoplePage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { networkId, loading: networkLoading, error: networkError } = usePrimaryNetwork()
+  const { selectedOccasion } = useOccasions()
 
   const [people, setPeople] = React.useState<Person[]>([])
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const [participantIds, setParticipantIds] = React.useState<Set<string>>(new Set())
 
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [form, setForm] = React.useState<NewPersonValues>(EMPTY_FORM)
@@ -62,6 +65,18 @@ export function PeoplePage() {
   React.useEffect(() => {
     if (networkId) loadPeople()
   }, [networkId, loadPeople])
+
+  React.useEffect(() => {
+    if (!selectedOccasion) {
+      setParticipantIds(new Set())
+      return
+    }
+    supabase
+      .from('occasion_participants')
+      .select('person_id')
+      .eq('occasion_id', selectedOccasion.id)
+      .then(({ data }) => setParticipantIds(new Set((data ?? []).map((r) => r.person_id))))
+  }, [selectedOccasion])
 
   function openAddDialog() {
     setForm(EMPTY_FORM)
@@ -168,6 +183,12 @@ export function PeoplePage() {
         </Dialog>
       </div>
 
+      {selectedOccasion && (
+        <p className="text-sm text-muted-foreground">
+          Showing who's already added to <span className="font-medium text-foreground">{selectedOccasion.name}</span>.
+        </p>
+      )}
+
       {(networkError || error) && <p className="text-sm text-destructive">{networkError ?? error}</p>}
 
       {(networkLoading || loading) && <p className="text-sm text-muted-foreground">Loading…</p>}
@@ -205,14 +226,22 @@ export function PeoplePage() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{person.full_name}</p>
                   {person.relationship && <p className="truncate text-sm text-muted-foreground">{person.relationship}</p>}
-                  {showBirthday && (
-                    <Badge variant="secondary" className="mt-1">
-                      <Cake />
-                      {daysUntil === 0 ? 'Birthday today!' : `Birthday in ${daysUntil} day${daysUntil === 1 ? '' : 's'}`}
-                      {' · '}
-                      {formatMonthDay(person.birthday!)}
-                    </Badge>
-                  )}
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {showBirthday && (
+                      <Badge variant="secondary">
+                        <Cake />
+                        {daysUntil === 0 ? 'Birthday today!' : `Birthday in ${daysUntil} day${daysUntil === 1 ? '' : 's'}`}
+                        {' · '}
+                        {formatMonthDay(person.birthday!)}
+                      </Badge>
+                    )}
+                    {selectedOccasion && participantIds.has(person.id) && (
+                      <Badge variant="outline">
+                        <Check />
+                        Added
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>

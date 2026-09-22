@@ -219,6 +219,96 @@ export type Database = {
         }
         Relationships: []
       }
+      occasions: {
+        Row: {
+          id: string
+          network_id: string
+          name: string
+          type: string
+          date: string
+          budget: number | null
+          is_recurring_template: boolean
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          network_id: string
+          name: string
+          type?: string
+          date: string
+          budget?: number | null
+          is_recurring_template?: boolean
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          network_id?: string
+          name?: string
+          type?: string
+          date?: string
+          budget?: number | null
+          is_recurring_template?: boolean
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      occasion_participants: {
+        Row: {
+          id: string
+          occasion_id: string
+          person_id: string
+          budget: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          occasion_id: string
+          person_id: string
+          budget?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          occasion_id?: string
+          person_id?: string
+          budget?: number | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      occasion_group_budgets: {
+        Row: {
+          id: string
+          occasion_id: string
+          group_id: string
+          budget: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          occasion_id: string
+          group_id: string
+          budget: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          occasion_id?: string
+          group_id?: string
+          budget?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: Record<string, never>
