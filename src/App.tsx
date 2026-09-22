@@ -7,6 +7,7 @@ import { SignInPage } from '@/auth/sign-in-page'
 import { HomePage } from '@/pages/home-page'
 import { MorePage } from '@/pages/more-page'
 import { PeoplePage } from '@/pages/people-page'
+import { PersonProfilePage } from '@/pages/person-profile-page'
 import { PlaceholderPage } from '@/pages/placeholder-page'
 import { ThemeProvider } from '@/theme/theme-provider'
 
@@ -61,6 +62,7 @@ export default function App() {
             >
               <Route index element={<HomePage />} />
               <Route path="people" element={<PeoplePage />} />
+              <Route path="people/:id" element={<PersonProfilePage />} />
               <Route
                 path="gifts"
                 element={<PlaceholderPage title="Gifts" note="Gift tracking is coming in a later phase." />}

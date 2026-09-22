@@ -1,6 +1,9 @@
-import { MoreVertical, Plus } from 'lucide-react'
+import { Cake, Plus } from 'lucide-react'
 import * as React from 'react'
+import { useNavigate } from 'react-router-dom'
 
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -12,31 +15,24 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/auth/auth-provider'
 import { usePrimaryNetwork } from '@/hooks/use-primary-network'
+import { daysUntilNextBirthday, formatMonthDay, parseDateOnly } from '@/lib/date-utils'
 import { supabase } from '@/lib/supabase'
+import { getInitials } from '@/lib/utils'
 import type { Database } from '@/lib/database.types'
 
 type Person = Database['public']['Tables']['people']['Row']
 
-type PersonFormValues = {
-  full_name: string
-  relationship: string
-  birthday: string
-  notes: string
-}
+const BIRTHDAY_LOOKAHEAD_DAYS = 60
 
-const EMPTY_FORM: PersonFormValues = { full_name: '', relationship: '', birthday: '', notes: '' }
+type NewPersonValues = { full_name: string; relationship: string; birthday: string }
+const EMPTY_FORM: NewPersonValues = { full_name: '', relationship: '', birthday: '' }
 
 export function PeoplePage() {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const { networkId, loading: networkLoading, error: networkError } = usePrimaryNetwork()
 
@@ -45,8 +41,8 @@ export function PeoplePage() {
   const [error, setError] = React.useState<string | null>(null)
 
   const [dialogOpen, setDialogOpen] = React.useState(false)
-  const [editingId, setEditingId] = React.useState<string | null>(null)
-  const [form, setForm] = React.useState<PersonFormValues>(EMPTY_FORM)
+  const [form, setForm] = React.useState<NewPersonValues>(EMPTY_FORM)
+  const [formError, setFormError] = React.useState<string | null>(null)
   const [saving, setSaving] = React.useState(false)
 
   const loadPeople = React.useCallback(() => {
@@ -68,52 +64,49 @@ export function PeoplePage() {
   }, [networkId, loadPeople])
 
   function openAddDialog() {
-    setEditingId(null)
     setForm(EMPTY_FORM)
-    setDialogOpen(true)
-  }
-
-  function openEditDialog(person: Person) {
-    setEditingId(person.id)
-    setForm({
-      full_name: person.full_name,
-      relationship: person.relationship ?? '',
-      birthday: person.birthday ?? '',
-      notes: person.notes ?? '',
-    })
+    setFormError(null)
     setDialogOpen(true)
   }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     if (!networkId || !user) return
+
+    const fullName = form.full_name.trim()
+    if (!fullName) {
+      setFormError('Name is required.')
+      return
+    }
+    if (form.birthday && !parseDateOnly(form.birthday)) {
+      setFormError('Enter a valid birthday.')
+      return
+    }
+
     setSaving(true)
-    setError(null)
+    setFormError(null)
 
-    const payload = {
-      full_name: form.full_name.trim(),
-      relationship: form.relationship.trim() || null,
-      birthday: form.birthday || null,
-      notes: form.notes.trim() || null,
-    }
+    const { data, error } = await supabase
+      .from('people')
+      .insert({
+        network_id: networkId,
+        created_by: user.id,
+        full_name: fullName,
+        relationship: form.relationship.trim() || null,
+        birthday: form.birthday || null,
+      })
+      .select('id')
+      .single()
 
-    const { error } = editingId
-      ? await supabase.from('people').update(payload).eq('id', editingId)
-      : await supabase.from('people').insert({ ...payload, network_id: networkId, created_by: user.id })
-
-    if (error) {
-      setError(error.message)
-    } else {
-      setDialogOpen(false)
-      loadPeople()
-    }
     setSaving(false)
-  }
 
-  async function handleDelete(id: string) {
-    const { error } = await supabase.from('people').delete().eq('id', id)
-    if (error) setError(error.message)
-    else setPeople((prev) => prev.filter((p) => p.id !== id))
+    if (error || !data) {
+      setFormError(error?.message ?? 'Something went wrong.')
+      return
+    }
+
+    setDialogOpen(false)
+    navigate(`/people/${data.id}`)
   }
 
   return (
@@ -130,8 +123,10 @@ export function PeoplePage() {
           <DialogContent>
             <form onSubmit={handleSubmit}>
               <DialogHeader>
-                <DialogTitle>{editingId ? 'Edit person' : 'Add person'}</DialogTitle>
-                <DialogDescription>Keep track of the people you gift for.</DialogDescription>
+                <DialogTitle>Add person</DialogTitle>
+                <DialogDescription>
+                  Add the basics now — you can add a photo, interests, and other details on their profile next.
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
@@ -161,20 +156,11 @@ export function PeoplePage() {
                     onChange={(e) => setForm((f) => ({ ...f, birthday: e.target.value }))}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Input
-                    id="notes"
-                    placeholder="Gift ideas, sizes, preferences..."
-                    value={form.notes}
-                    onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                  />
-                </div>
-                {error && <p className="text-sm text-destructive">{error}</p>}
+                {formError && <p className="text-sm text-destructive">{formError}</p>}
               </div>
               <DialogFooter>
                 <Button type="submit" disabled={saving || !form.full_name.trim()}>
-                  {editingId ? 'Save changes' : 'Add person'}
+                  Add person
                 </Button>
               </DialogFooter>
             </form>
@@ -182,7 +168,7 @@ export function PeoplePage() {
         </Dialog>
       </div>
 
-      {networkError && <p className="text-sm text-destructive">{networkError}</p>}
+      {(networkError || error) && <p className="text-sm text-destructive">{networkError ?? error}</p>}
 
       {(networkLoading || loading) && <p className="text-sm text-muted-foreground">Loading…</p>}
 
@@ -201,37 +187,37 @@ export function PeoplePage() {
       )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {people.map((person) => (
-          <Card key={person.id}>
-            <CardContent className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="truncate font-medium">{person.full_name}</p>
-                {person.relationship && <p className="text-sm text-muted-foreground">{person.relationship}</p>}
-                {person.birthday && (
-                  <p className="text-sm text-muted-foreground">
-                    {new Date(person.birthday + 'T00:00:00').toLocaleDateString(undefined, {
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                  </p>
-                )}
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="shrink-0">
-                    <MoreVertical />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onSelect={() => openEditDialog(person)}>Edit</DropdownMenuItem>
-                  <DropdownMenuItem variant="destructive" onSelect={() => void handleDelete(person.id)}>
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </CardContent>
-          </Card>
-        ))}
+        {people.map((person) => {
+          const daysUntil = person.birthday ? daysUntilNextBirthday(person.birthday) : null
+          const showBirthday = daysUntil !== null && daysUntil <= BIRTHDAY_LOOKAHEAD_DAYS
+
+          return (
+            <Card
+              key={person.id}
+              className="cursor-pointer transition-colors hover:bg-accent/40"
+              onClick={() => navigate(`/people/${person.id}`)}
+            >
+              <CardContent className="flex items-center gap-3">
+                <Avatar className="size-12">
+                  {person.avatar_url && <AvatarImage src={person.avatar_url} alt={person.full_name} />}
+                  <AvatarFallback>{getInitials(person.full_name)}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{person.full_name}</p>
+                  {person.relationship && <p className="truncate text-sm text-muted-foreground">{person.relationship}</p>}
+                  {showBirthday && (
+                    <Badge variant="secondary" className="mt-1">
+                      <Cake />
+                      {daysUntil === 0 ? 'Birthday today!' : `Birthday in ${daysUntil} day${daysUntil === 1 ? '' : 's'}`}
+                      {' · '}
+                      {formatMonthDay(person.birthday!)}
+                    </Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
     </div>
   )

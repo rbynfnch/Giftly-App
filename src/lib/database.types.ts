@@ -108,6 +108,7 @@ export type Database = {
           birthday: string | null
           notes: string | null
           avatar_url: string | null
+          interests: string[]
           created_at: string
           updated_at: string
         }
@@ -122,6 +123,7 @@ export type Database = {
           birthday?: string | null
           notes?: string | null
           avatar_url?: string | null
+          interests?: string[]
           created_at?: string
           updated_at?: string
         }
@@ -136,6 +138,82 @@ export type Database = {
           birthday?: string | null
           notes?: string | null
           avatar_url?: string | null
+          interests?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      person_attributes: {
+        Row: {
+          id: string
+          person_id: string
+          category: string
+          label: string
+          value: string
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          person_id: string
+          category?: string
+          label: string
+          value: string
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          person_id?: string
+          category?: string
+          label?: string
+          value?: string
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      gifts: {
+        Row: {
+          id: string
+          network_id: string
+          person_id: string
+          created_by: string
+          title: string
+          status: 'idea' | 'planned' | 'purchased' | 'given'
+          price: number | null
+          url: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          network_id: string
+          person_id: string
+          created_by: string
+          title: string
+          status?: 'idea' | 'planned' | 'purchased' | 'given'
+          price?: number | null
+          url?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          network_id?: string
+          person_id?: string
+          created_by?: string
+          title?: string
+          status?: 'idea' | 'planned' | 'purchased' | 'given'
+          price?: number | null
+          url?: string | null
+          notes?: string | null
           created_at?: string
           updated_at?: string
         }
