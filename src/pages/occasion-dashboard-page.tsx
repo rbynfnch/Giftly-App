@@ -387,9 +387,11 @@ function ParticipantsSection({
   const [addOpen, setAddOpen] = React.useState(false)
   const [candidates, setCandidates] = React.useState<Person[]>([])
   const [budgetDrafts, setBudgetDrafts] = React.useState<Record<string, string>>({})
+  const [error, setError] = React.useState<string | null>(null)
 
   function openAddDialog() {
     if (!networkId) return
+    setError(null)
     supabase
       .from('people')
       .select('*')
@@ -401,27 +403,35 @@ function ParticipantsSection({
 
   async function addParticipant(personId: string, budget: string) {
     const parsedBudget = budget.trim() ? Number(budget) : null
-    await supabase.from('occasion_participants').insert({
+    const { error } = await supabase.from('occasion_participants').insert({
       occasion_id: occasionId,
       person_id: personId,
       budget: parsedBudget !== null && !Number.isNaN(parsedBudget) ? parsedBudget : null,
     })
+    if (error) {
+      setError(error.message)
+      return
+    }
+    setError(null)
+    setAddOpen(false)
     onChange()
   }
 
   async function removeParticipant(id: string) {
-    await supabase.from('occasion_participants').delete().eq('id', id)
-    onChange()
+    const { error } = await supabase.from('occasion_participants').delete().eq('id', id)
+    if (error) setError(error.message)
+    else onChange()
   }
 
   async function saveBudget(participantId: string) {
     const raw = budgetDrafts[participantId]
     const parsed = raw?.trim() ? Number(raw) : null
-    await supabase
+    const { error } = await supabase
       .from('occasion_participants')
       .update({ budget: parsed !== null && !Number.isNaN(parsed) ? parsed : null })
       .eq('id', participantId)
-    onChange()
+    if (error) setError(error.message)
+    else onChange()
   }
 
   return (
@@ -443,13 +453,15 @@ function ParticipantsSection({
             <div className="max-h-80 space-y-2 overflow-y-auto py-2">
               {candidates.length === 0 && <p className="text-sm text-muted-foreground">Everyone's already added, or you have no people yet.</p>}
               {candidates.map((person) => (
-                <AddCandidateRow key={person.id} person={person} onAdd={(budget) => void addParticipant(person.id, budget).then(() => setAddOpen(false))} />
+                <AddCandidateRow key={person.id} person={person} onAdd={(budget) => void addParticipant(person.id, budget)} />
               ))}
+              {error && <p className="text-sm text-destructive">{error}</p>}
             </div>
           </DialogContent>
         </Dialog>
       </CardHeader>
       <CardContent className="space-y-2">
+        {error && !addOpen && <p className="text-sm text-destructive">{error}</p>}
         {participants.length === 0 && <p className="text-sm text-muted-foreground">No participants yet.</p>}
         {participants.map((p) => (
           <div key={p.id} className="flex items-center gap-2 rounded-md border px-3 py-2">
@@ -558,15 +570,22 @@ function GroupBudgetRow({
 }) {
   const [editing, setEditing] = React.useState(false)
   const [draft, setDraft] = React.useState(existing?.budget.toString() ?? '')
+  const [error, setError] = React.useState<string | null>(null)
 
   async function save() {
     const parsed = Number(draft)
-    if (Number.isNaN(parsed) || parsed < 0) return
-    if (existing) {
-      await supabase.from('occasion_group_budgets').update({ budget: parsed }).eq('id', existing.id)
-    } else {
-      await supabase.from('occasion_group_budgets').insert({ occasion_id: occasionId, group_id: group.id, budget: parsed })
+    if (Number.isNaN(parsed) || parsed < 0) {
+      setError('Enter a valid budget.')
+      return
     }
+    const { error } = existing
+      ? await supabase.from('occasion_group_budgets').update({ budget: parsed }).eq('id', existing.id)
+      : await supabase.from('occasion_group_budgets').insert({ occasion_id: occasionId, group_id: group.id, budget: parsed })
+    if (error) {
+      setError(error.message)
+      return
+    }
+    setError(null)
     setEditing(false)
     onChange()
   }
@@ -592,6 +611,7 @@ function GroupBudgetRow({
         <span>Allocated to individuals: {money(individualAllocated)}</span>
         <span>Spent: {money(0)}</span>
       </div>
+      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
     </div>
   )
 }
