@@ -1,8 +1,9 @@
-import { ArrowLeft, Copy, Pencil, Plus, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, Copy, ExternalLink, Gift as GiftIcon, Pencil, Plus, Trash2, Users } from 'lucide-react'
 import * as React from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -18,9 +19,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/auth/auth-provider'
 import { addYears, formatMonthDay, parseDateOnly } from '@/lib/date-utils'
+import { formatMoney as money } from '@/lib/money'
 import { supabase } from '@/lib/supabase'
 import { getInitials } from '@/lib/utils'
 import type { Database } from '@/lib/database.types'
+import { GiftDialog } from '@/gifts/gift-dialog'
+import { GIFT_STATUSES, GIFT_STATUS_BADGE_CLASS, GIFT_STATUS_LABELS, isSpentStatus } from '@/gifts/gift-status'
 import { useOccasions } from '@/occasions/occasion-context'
 
 type Occasion = Database['public']['Tables']['occasions']['Row']
@@ -28,10 +32,8 @@ type Person = Database['public']['Tables']['people']['Row']
 type Participant = Database['public']['Tables']['occasion_participants']['Row'] & { person: Person }
 type Group = Database['public']['Tables']['groups']['Row']
 type GroupBudget = Database['public']['Tables']['occasion_group_budgets']['Row']
-
-function money(n: number) {
-  return `$${n.toFixed(2)}`
-}
+type GiftRow = Database['public']['Tables']['gifts']['Row']
+type GiftBundle = Database['public']['Tables']['gift_bundles']['Row']
 
 export function OccasionDashboardPage() {
   const { id } = useParams<{ id: string }>()
@@ -46,6 +48,9 @@ export function OccasionDashboardPage() {
   const [participants, setParticipants] = React.useState<Participant[]>([])
   const [groups, setGroups] = React.useState<Group[]>([])
   const [groupBudgets, setGroupBudgets] = React.useState<GroupBudget[]>([])
+  const [gifts, setGifts] = React.useState<GiftRow[]>([])
+  const [giftsLoading, setGiftsLoading] = React.useState(true)
+  const [bundles, setBundles] = React.useState<GiftBundle[]>([])
 
   const loadOccasion = React.useCallback(() => {
     if (!id) return
@@ -95,12 +100,34 @@ export function OccasionDashboardPage() {
       .then(({ data }) => setGroupBudgets(data ?? []))
   }, [id])
 
+  const loadGifts = React.useCallback(() => {
+    if (!id) return
+    setGiftsLoading(true)
+    supabase
+      .from('gifts')
+      .select('*')
+      .eq('occasion_id', id)
+      .then(({ data, error }) => {
+        if (!error) setGifts(data ?? [])
+        setGiftsLoading(false)
+      })
+  }, [id])
+
   React.useEffect(loadOccasion, [loadOccasion])
   React.useEffect(() => {
     void loadParticipants()
   }, [loadParticipants])
   React.useEffect(loadGroups, [loadGroups])
   React.useEffect(loadGroupBudgets, [loadGroupBudgets])
+  React.useEffect(loadGifts, [loadGifts])
+  React.useEffect(() => {
+    if (!id) return
+    supabase
+      .from('gift_bundles')
+      .select('*')
+      .eq('occasion_id', id)
+      .then(({ data }) => setBundles(data ?? []))
+  }, [id])
 
   async function handleDuplicate() {
     if (!occasion || !networkId || !user) return
@@ -149,8 +176,8 @@ export function OccasionDashboardPage() {
 
   const allocatedToIndividuals = participants.reduce((sum, p) => sum + (p.budget ?? 0), 0)
   const allocatedToGroups = groupBudgets.reduce((sum, g) => sum + g.budget, 0)
-  const spent = 0
-  const remaining = occasion.budget !== null ? occasion.budget - allocatedToIndividuals - allocatedToGroups : null
+  const spent = gifts.filter((g) => isSpentStatus(g.status)).reduce((sum, g) => sum + (g.price ?? 0), 0)
+  const remaining = occasion.budget !== null ? occasion.budget - spent : null
 
   const groupsInPlay = groups.filter(
     (g) => participants.some((p) => p.person.group_id === g.id) || groupBudgets.some((gb) => gb.group_id === g.id),
@@ -186,7 +213,7 @@ export function OccasionDashboardPage() {
         <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Stat label="Budget" value={occasion.budget !== null ? money(occasion.budget) : '—'} />
           <Stat label="Allocated" value={money(allocatedToIndividuals + allocatedToGroups)} />
-          <Stat label="Spent" value={money(spent)} note="Gift tracking coming later" />
+          <Stat label="Spent" value={money(spent)} />
           <Stat label="Remaining" value={remaining !== null ? money(remaining) : '—'} />
         </CardContent>
       </Card>
@@ -204,9 +231,19 @@ export function OccasionDashboardPage() {
           groups={groupsInPlay}
           groupBudgets={groupBudgets}
           participants={participants}
+          gifts={gifts}
           onChange={loadGroupBudgets}
         />
       )}
+
+      <GiftsSection
+        occasion={occasion}
+        participants={participants}
+        gifts={gifts}
+        bundles={bundles}
+        loading={giftsLoading}
+        onChange={loadGifts}
+      />
     </div>
   )
 }
@@ -517,12 +554,14 @@ function GroupBudgetsSection({
   groups,
   groupBudgets,
   participants,
+  gifts,
   onChange,
 }: {
   occasionId: string
   groups: Group[]
   groupBudgets: GroupBudget[]
   participants: Participant[]
+  gifts: GiftRow[]
   onChange: () => void
 }) {
   return (
@@ -536,9 +575,13 @@ function GroupBudgetsSection({
       <CardContent className="space-y-3">
         {groups.map((group) => {
           const existing = groupBudgets.find((gb) => gb.group_id === group.id)
+          const memberPersonIds = new Set(participants.filter((p) => p.person.group_id === group.id).map((p) => p.person_id))
           const individualAllocated = participants
             .filter((p) => p.person.group_id === group.id)
             .reduce((sum, p) => sum + (p.budget ?? 0), 0)
+          const spent = gifts
+            .filter((g) => memberPersonIds.has(g.person_id) && isSpentStatus(g.status))
+            .reduce((sum, g) => sum + (g.price ?? 0), 0)
           return (
             <GroupBudgetRow
               key={group.id}
@@ -546,6 +589,7 @@ function GroupBudgetsSection({
               group={group}
               existing={existing}
               individualAllocated={individualAllocated}
+              spent={spent}
               onChange={onChange}
             />
           )
@@ -560,12 +604,14 @@ function GroupBudgetRow({
   group,
   existing,
   individualAllocated,
+  spent,
   onChange,
 }: {
   occasionId: string
   group: Group
   existing: GroupBudget | undefined
   individualAllocated: number
+  spent: number
   onChange: () => void
 }) {
   const [editing, setEditing] = React.useState(false)
@@ -609,9 +655,141 @@ function GroupBudgetRow({
       </div>
       <div className="mt-1 flex gap-4 text-xs text-muted-foreground">
         <span>Allocated to individuals: {money(individualAllocated)}</span>
-        <span>Spent: {money(0)}</span>
+        <span>Spent: {money(spent)}</span>
       </div>
       {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
     </div>
+  )
+}
+
+function GiftsSection({
+  occasion,
+  participants,
+  gifts,
+  bundles,
+  loading,
+  onChange,
+}: {
+  occasion: Occasion
+  participants: Participant[]
+  gifts: GiftRow[]
+  bundles: GiftBundle[]
+  loading: boolean
+  onChange: () => void
+}) {
+  const { user } = useAuth()
+  const [dialogOpen, setDialogOpen] = React.useState(false)
+  const [editingGift, setEditingGift] = React.useState<GiftRow | undefined>(undefined)
+
+  const personById = React.useMemo(() => new Map(participants.map((p) => [p.person_id, p.person])), [participants])
+  const bundleById = React.useMemo(() => new Map(bundles.map((b) => [b.id, b])), [bundles])
+
+  const counts = React.useMemo(() => {
+    const map = new Map<string, number>()
+    for (const status of GIFT_STATUSES) map.set(status, 0)
+    for (const g of gifts) map.set(g.status, (map.get(g.status) ?? 0) + 1)
+    return map
+  }, [gifts])
+
+  function openAdd() {
+    setEditingGift(undefined)
+    setDialogOpen(true)
+  }
+
+  function openEdit(gift: GiftRow) {
+    setEditingGift(gift)
+    setDialogOpen(true)
+  }
+
+  async function handleDelete(id: string) {
+    const { error } = await supabase.from('gifts').delete().eq('id', id)
+    if (!error) onChange()
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-base">Gifts</CardTitle>
+        <Button variant="outline" size="sm" onClick={openAdd} disabled={participants.length === 0}>
+          <Plus />
+          Add
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {participants.length === 0 && (
+          <p className="text-sm text-muted-foreground">Add participants first, then track gifts for them here.</p>
+        )}
+
+        {participants.length > 0 && (
+          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+            {GIFT_STATUSES.map((status) => (
+              <span key={status}>
+                {counts.get(status) ?? 0} {GIFT_STATUS_LABELS[status].toLowerCase()}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
+        {!loading && participants.length > 0 && gifts.length === 0 && (
+          <div className="flex flex-col items-center gap-2 py-6 text-center text-muted-foreground">
+            <GiftIcon className="size-8" />
+            <p className="text-sm">No gifts tracked yet for this occasion.</p>
+          </div>
+        )}
+
+        <div className="space-y-1">
+          {gifts.map((gift) => {
+            const person = personById.get(gift.person_id)
+            const bundle = gift.bundle_id ? bundleById.get(gift.bundle_id) : undefined
+            return (
+              <div key={gift.id} className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-medium">{gift.title}</span>
+                    <Badge className={GIFT_STATUS_BADGE_CLASS[gift.status]}>{GIFT_STATUS_LABELS[gift.status]}</Badge>
+                    {bundle && (
+                      <Badge variant="outline" className="text-muted-foreground">
+                        {bundle.name}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+                    {person && <span>{person.full_name}</span>}
+                    {gift.price !== null && <span>{money(gift.price)}</span>}
+                    {gift.url && (
+                      <a href={gift.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 hover:underline">
+                        <ExternalLink className="size-3" />
+                        Link
+                      </a>
+                    )}
+                  </div>
+                </div>
+                <div className="flex shrink-0 gap-1">
+                  <Button variant="ghost" size="icon" onClick={() => openEdit(gift)} aria-label={`Edit ${gift.title}`}>
+                    <Pencil className="size-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => void handleDelete(gift.id)} aria-label={`Delete ${gift.title}`}>
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </CardContent>
+
+      {user && participants.length > 0 && (
+        <GiftDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          networkId={occasion.network_id}
+          userId={user.id}
+          mode={{ kind: 'occasion', occasion, people: participants.map((p) => p.person) }}
+          gift={editingGift}
+          onSaved={onChange}
+        />
+      )}
+    </Card>
   )
 }

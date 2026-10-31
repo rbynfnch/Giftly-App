@@ -13,6 +13,7 @@ psql -d giftly_test -v ON_ERROR_STOP=1 -f ../migrations/0001_init.sql
 psql -d giftly_test -v ON_ERROR_STOP=1 -f ../migrations/0002_people_details.sql
 psql -d giftly_test -v ON_ERROR_STOP=1 -f ../migrations/0003_avatars_storage.sql
 psql -d giftly_test -v ON_ERROR_STOP=1 -f ../migrations/0004_occasions.sql
+psql -d giftly_test -v ON_ERROR_STOP=1 -f ../migrations/0005_gifts_bundles.sql
 
 psql -d giftly_test -v ON_ERROR_STOP=1 -f 01-setup-role.sql     # seeds alice + bob, non-superuser role
 psql -d giftly_test -v ON_ERROR_STOP=1 -c "
@@ -21,11 +22,13 @@ psql -d giftly_test -v ON_ERROR_STOP=1 -c "
   grant select on storage.buckets to app_user;
   grant execute on function public.is_person_network_member(uuid,uuid) to app_user;
   grant execute on function public.is_occasion_network_member(uuid,uuid) to app_user;
+  grant execute on function public.is_gift_hidden_from_viewer(uuid,uuid) to app_user;
 "
 
 psql -d giftly_test -f 02-rls-scenarios.sql                     # Phase 1: people/groups/networks isolation
 psql -d giftly_test -f 03-people-details-scenarios.sql          # Phase 2: person_attributes/gifts/avatar storage isolation
 psql -d giftly_test -f 04-occasions-scenarios.sql               # Phase 3: occasions/occasion_participants/occasion_group_budgets isolation
+psql -d giftly_test -f 05-gifts-bundles-scenarios.sql           # Phase 4: gifts/gift_bundles isolation + gift secrecy
 
 dropdb giftly_test                                              # cleanup
 psql -c "drop role if exists app_user;"

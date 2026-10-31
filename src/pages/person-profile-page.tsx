@@ -1,4 +1,4 @@
-import { ArrowLeft, Camera, Gift, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Camera, ExternalLink, Gift as GiftIcon, Loader2, Package, Pencil, Plus, Trash2, X } from 'lucide-react'
 import * as React from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
@@ -18,14 +18,21 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { useAuth } from '@/auth/auth-provider'
 import { daysUntilNextBirthday, formatMonthDay, parseDateOnly } from '@/lib/date-utils'
 import { deletePersonAvatars, uploadPersonAvatar } from '@/lib/avatar-storage'
+import { formatMoney } from '@/lib/money'
 import { supabase } from '@/lib/supabase'
 import { getInitials } from '@/lib/utils'
 import type { Database } from '@/lib/database.types'
+import { GiftDialog } from '@/gifts/gift-dialog'
+import { GIFT_STATUS_BADGE_CLASS, GIFT_STATUS_LABELS } from '@/gifts/gift-status'
 
 type Person = Database['public']['Tables']['people']['Row']
 type PersonAttribute = Database['public']['Tables']['person_attributes']['Row']
+type Occasion = Database['public']['Tables']['occasions']['Row']
+type GiftRow = Database['public']['Tables']['gifts']['Row']
+type GiftBundle = Database['public']['Tables']['gift_bundles']['Row']
 
 const DEFAULT_CATEGORIES = ['Clothing Sizes', 'Preferences']
 
@@ -38,6 +45,11 @@ export function PersonProfilePage() {
 
   const [attributes, setAttributes] = React.useState<PersonAttribute[]>([])
   const [attributesLoading, setAttributesLoading] = React.useState(true)
+
+  const [gifts, setGifts] = React.useState<GiftRow[]>([])
+  const [bundles, setBundles] = React.useState<GiftBundle[]>([])
+  const [occasions, setOccasions] = React.useState<Occasion[]>([])
+  const [giftsLoading, setGiftsLoading] = React.useState(true)
 
   const loadPerson = React.useCallback(() => {
     if (!id) return
@@ -69,8 +81,44 @@ export function PersonProfilePage() {
       })
   }, [id])
 
+  const loadGifts = React.useCallback(() => {
+    if (!id) return
+    setGiftsLoading(true)
+    supabase
+      .from('gifts')
+      .select('*')
+      .eq('person_id', id)
+      .order('created_at', { ascending: true })
+      .then(({ data, error }) => {
+        if (!error) setGifts(data ?? [])
+        setGiftsLoading(false)
+      })
+  }, [id])
+
+  const loadBundles = React.useCallback(() => {
+    if (!id) return
+    supabase
+      .from('gift_bundles')
+      .select('*')
+      .eq('person_id', id)
+      .then(({ data }) => setBundles(data ?? []))
+  }, [id])
+
+  const loadOccasions = React.useCallback(() => {
+    if (!person) return
+    supabase
+      .from('occasions')
+      .select('*')
+      .eq('network_id', person.network_id)
+      .order('date', { ascending: true })
+      .then(({ data }) => setOccasions(data ?? []))
+  }, [person])
+
   React.useEffect(loadPerson, [loadPerson])
   React.useEffect(loadAttributes, [loadAttributes])
+  React.useEffect(loadGifts, [loadGifts])
+  React.useEffect(loadBundles, [loadBundles])
+  React.useEffect(loadOccasions, [loadOccasions])
 
   if (loading) return <p className="text-sm text-muted-foreground">Loading…</p>
   if (error || !person) {
@@ -121,15 +169,17 @@ export function PersonProfilePage() {
 
       <AttributesSection personId={person.id} attributes={attributes} loading={attributesLoading} onChange={loadAttributes} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Gift History</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center gap-2 py-8 text-center text-muted-foreground">
-          <Gift className="size-8" />
-          <p className="text-sm">Gift tracking is coming in a later phase.</p>
-        </CardContent>
-      </Card>
+      <GiftsSection
+        person={person}
+        gifts={gifts}
+        bundles={bundles}
+        occasions={occasions}
+        loading={giftsLoading}
+        onChange={() => {
+          loadGifts()
+          loadBundles()
+        }}
+      />
     </div>
   )
 }
@@ -548,6 +598,152 @@ function AttributesSection({
           </div>
         ))}
       </CardContent>
+    </Card>
+  )
+}
+
+function GiftsSection({
+  person,
+  gifts,
+  bundles,
+  occasions,
+  loading,
+  onChange,
+}: {
+  person: Person
+  gifts: GiftRow[]
+  bundles: GiftBundle[]
+  occasions: Occasion[]
+  loading: boolean
+  onChange: () => void
+}) {
+  const { user } = useAuth()
+  const [dialogOpen, setDialogOpen] = React.useState(false)
+  const [editingGift, setEditingGift] = React.useState<GiftRow | undefined>(undefined)
+
+  const occasionById = React.useMemo(() => new Map(occasions.map((o) => [o.id, o])), [occasions])
+  const bundleById = React.useMemo(() => new Map(bundles.map((b) => [b.id, b])), [bundles])
+
+  const ungrouped = gifts.filter((g) => !g.bundle_id)
+  const grouped = React.useMemo(() => {
+    const map = new Map<string, GiftRow[]>()
+    for (const g of gifts) {
+      if (!g.bundle_id) continue
+      const list = map.get(g.bundle_id) ?? []
+      list.push(g)
+      map.set(g.bundle_id, list)
+    }
+    return map
+  }, [gifts])
+
+  function openAdd() {
+    setEditingGift(undefined)
+    setDialogOpen(true)
+  }
+
+  function openEdit(gift: GiftRow) {
+    setEditingGift(gift)
+    setDialogOpen(true)
+  }
+
+  async function handleDelete(id: string) {
+    const { error } = await supabase.from('gifts').delete().eq('id', id)
+    if (!error) onChange()
+  }
+
+  function GiftRowView({ gift }: { gift: GiftRow }) {
+    const occasion = gift.occasion_id ? occasionById.get(gift.occasion_id) : undefined
+    return (
+      <div className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="font-medium">{gift.title}</span>
+            <Badge className={GIFT_STATUS_BADGE_CLASS[gift.status]}>{GIFT_STATUS_LABELS[gift.status]}</Badge>
+            {occasion && (
+              <Badge variant="outline" className="text-muted-foreground">
+                {occasion.name}
+              </Badge>
+            )}
+          </div>
+          <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+            {gift.price !== null && <span>{formatMoney(gift.price)}</span>}
+            {gift.url && (
+              <a href={gift.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 hover:underline">
+                <ExternalLink className="size-3" />
+                Link
+              </a>
+            )}
+          </div>
+        </div>
+        <div className="flex shrink-0 gap-1">
+          <Button variant="ghost" size="icon" onClick={() => openEdit(gift)} aria-label={`Edit ${gift.title}`}>
+            <Pencil className="size-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => void handleDelete(gift.id)} aria-label={`Delete ${gift.title}`}>
+            <Trash2 className="size-3.5" />
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-base">Gifts</CardTitle>
+        <Button variant="outline" size="sm" onClick={openAdd}>
+          <Plus />
+          Add
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
+        {!loading && gifts.length === 0 && (
+          <div className="flex flex-col items-center gap-2 py-6 text-center text-muted-foreground">
+            <GiftIcon className="size-8" />
+            <p className="text-sm">No gifts tracked yet for {person.full_name}.</p>
+          </div>
+        )}
+
+        {Array.from(grouped.entries()).map(([bundleId, items]) => {
+          const bundle = bundleById.get(bundleId)
+          const subtotal = items.reduce((sum, g) => sum + (g.price ?? 0), 0)
+          return (
+            <div key={bundleId} className="space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Package className="size-3.5" />
+                {bundle?.name ?? 'Bundle'}
+                <span className="font-normal">· {formatMoney(subtotal)}</span>
+              </div>
+              <div className="space-y-1 border-l-2 pl-3">
+                {items.map((g) => (
+                  <GiftRowView key={g.id} gift={g} />
+                ))}
+              </div>
+            </div>
+          )
+        })}
+
+        {ungrouped.length > 0 && (
+          <div className="space-y-1">
+            {ungrouped.map((g) => (
+              <GiftRowView key={g.id} gift={g} />
+            ))}
+          </div>
+        )}
+      </CardContent>
+
+      {user && (
+        <GiftDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          networkId={person.network_id}
+          userId={user.id}
+          mode={{ kind: 'person', person, occasions, bundles }}
+          gift={editingGift}
+          onSaved={onChange}
+        />
+      )}
     </Card>
   )
 }

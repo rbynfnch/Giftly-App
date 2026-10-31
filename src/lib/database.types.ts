@@ -182,6 +182,8 @@ export type Database = {
           id: string
           network_id: string
           person_id: string
+          occasion_id: string | null
+          bundle_id: string | null
           created_by: string
           title: string
           status: 'idea' | 'planned' | 'purchased' | 'given'
@@ -195,6 +197,8 @@ export type Database = {
           id?: string
           network_id: string
           person_id: string
+          occasion_id?: string | null
+          bundle_id?: string | null
           created_by: string
           title: string
           status?: 'idea' | 'planned' | 'purchased' | 'given'
@@ -208,12 +212,47 @@ export type Database = {
           id?: string
           network_id?: string
           person_id?: string
+          occasion_id?: string | null
+          bundle_id?: string | null
           created_by?: string
           title?: string
           status?: 'idea' | 'planned' | 'purchased' | 'given'
           price?: number | null
           url?: string | null
           notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      gift_bundles: {
+        Row: {
+          id: string
+          network_id: string
+          person_id: string
+          occasion_id: string | null
+          name: string
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          network_id: string
+          person_id: string
+          occasion_id?: string | null
+          name: string
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          network_id?: string
+          person_id?: string
+          occasion_id?: string | null
+          name?: string
+          created_by?: string
           created_at?: string
           updated_at?: string
         }
