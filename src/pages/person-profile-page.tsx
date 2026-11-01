@@ -450,19 +450,33 @@ function InterestsEditor({ person, onChange }: { person: Person; onChange: (pers
     if (!error && data) onChange(data)
   }
 
-  function addInterest() {
-    const tag = draft.trim()
-    if (!tag || person.interests.includes(tag)) {
-      setDraft('')
-      return
-    }
+  // Brain-dump: a comma-separated list typed in one go and submitted with a
+  // single Enter adds every item at once, instead of one-at-a-time.
+  function addInterests() {
+    const parts = draft
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean)
     setDraft('')
-    void persist([...person.interests, tag])
+    if (parts.length === 0) return
+
+    const existing = new Set(person.interests.map((tag) => tag.toLowerCase()))
+    const additions: string[] = []
+    for (const part of parts) {
+      const key = part.toLowerCase()
+      if (existing.has(key)) continue
+      existing.add(key)
+      additions.push(part)
+    }
+    if (additions.length === 0) return
+    void persist([...person.interests, ...additions])
   }
 
   function removeInterest(tag: string) {
     void persist(person.interests.filter((t) => t !== tag))
   }
+
+  const firstName = person.full_name.trim().split(/\s+/)[0] || person.full_name
 
   return (
     <Card>
@@ -473,7 +487,7 @@ function InterestsEditor({ person, onChange }: { person: Person; onChange: (pers
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
         >
-          <CardTitle className="text-base">Interests</CardTitle>
+          <CardTitle className="text-base">{firstName} likes...</CardTitle>
           <ChevronDown className={`size-4 text-muted-foreground transition-transform ${open ? '' : '-rotate-90'}`} />
         </button>
       </CardHeader>
@@ -492,18 +506,18 @@ function InterestsEditor({ person, onChange }: { person: Person; onChange: (pers
           </div>
           <div className="flex gap-2">
             <Input
-              placeholder="Add an interest and press Enter"
+              placeholder={`List ${firstName}'s favorite things (interests, hobbies, foods, snacks, passions, taste in music, fashion, etc). Separate with commas.`}
               value={draft}
               disabled={saving}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault()
-                  addInterest()
+                  addInterests()
                 }
               }}
             />
-            <Button type="button" variant="outline" onClick={addInterest} disabled={saving || !draft.trim()}>
+            <Button type="button" variant="outline" onClick={addInterests} disabled={saving || !draft.trim()}>
               Add
             </Button>
           </div>
