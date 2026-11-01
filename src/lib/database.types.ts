@@ -186,7 +186,7 @@ export type Database = {
           bundle_id: string | null
           created_by: string
           title: string
-          status: 'idea' | 'planned' | 'purchased' | 'given'
+          status: 'idea' | 'purchased' | 'wrapped' | 'gifted'
           price: number | null
           url: string | null
           notes: string | null
@@ -202,7 +202,7 @@ export type Database = {
           bundle_id?: string | null
           created_by: string
           title: string
-          status?: 'idea' | 'planned' | 'purchased' | 'given'
+          status?: 'idea' | 'purchased' | 'wrapped' | 'gifted'
           price?: number | null
           url?: string | null
           notes?: string | null
@@ -218,7 +218,7 @@ export type Database = {
           bundle_id?: string | null
           created_by?: string
           title?: string
-          status?: 'idea' | 'planned' | 'purchased' | 'given'
+          status?: 'idea' | 'purchased' | 'wrapped' | 'gifted'
           price?: number | null
           url?: string | null
           notes?: string | null
