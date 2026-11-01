@@ -1,4 +1,16 @@
-import { ArrowLeft, Camera, ExternalLink, Gift as GiftIcon, Loader2, Package, Pencil, Plus, Trash2, X } from 'lucide-react'
+import {
+  ArrowLeft,
+  Camera,
+  ChevronDown,
+  ExternalLink,
+  Gift as GiftIcon,
+  Loader2,
+  Package,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+} from 'lucide-react'
 import * as React from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
@@ -429,6 +441,7 @@ function EditPersonDialog({
 function InterestsEditor({ person, onChange }: { person: Person; onChange: (person: Person) => void }) {
   const [draft, setDraft] = React.useState('')
   const [saving, setSaving] = React.useState(false)
+  const [open, setOpen] = React.useState(true)
 
   async function persist(interests: string[]) {
     setSaving(true)
@@ -454,38 +467,48 @@ function InterestsEditor({ person, onChange }: { person: Person; onChange: (pers
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Interests</CardTitle>
+        <button
+          type="button"
+          className="flex w-full items-center justify-between"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+        >
+          <CardTitle className="text-base">Interests</CardTitle>
+          <ChevronDown className={`size-4 text-muted-foreground transition-transform ${open ? '' : '-rotate-90'}`} />
+        </button>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex flex-wrap gap-2">
-          {person.interests.map((tag) => (
-            <Badge key={tag} variant="secondary">
-              {tag}
-              <button type="button" onClick={() => removeInterest(tag)} aria-label={`Remove ${tag}`}>
-                <X className="size-3" />
-              </button>
-            </Badge>
-          ))}
-          {person.interests.length === 0 && <p className="text-sm text-muted-foreground">No interests added yet.</p>}
-        </div>
-        <div className="flex gap-2">
-          <Input
-            placeholder="Add an interest and press Enter"
-            value={draft}
-            disabled={saving}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                addInterest()
-              }
-            }}
-          />
-          <Button type="button" variant="outline" onClick={addInterest} disabled={saving || !draft.trim()}>
-            Add
-          </Button>
-        </div>
-      </CardContent>
+      {open && (
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {person.interests.map((tag) => (
+              <Badge key={tag} variant="secondary">
+                {tag}
+                <button type="button" onClick={() => removeInterest(tag)} aria-label={`Remove ${tag}`}>
+                  <X className="size-3" />
+                </button>
+              </Badge>
+            ))}
+            {person.interests.length === 0 && <p className="text-sm text-muted-foreground">No interests added yet.</p>}
+          </div>
+          <div className="flex gap-2">
+            <Input
+              placeholder="Add an interest and press Enter"
+              value={draft}
+              disabled={saving}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  addInterest()
+                }
+              }}
+            />
+            <Button type="button" variant="outline" onClick={addInterest} disabled={saving || !draft.trim()}>
+              Add
+            </Button>
+          </div>
+        </CardContent>
+      )}
     </Card>
   )
 }
@@ -509,6 +532,7 @@ function AttributesSection({
   const [form, setForm] = React.useState<AttributeFormValues>(EMPTY_ATTRIBUTE_FORM)
   const [error, setError] = React.useState<string | null>(null)
   const [saving, setSaving] = React.useState(false)
+  const [open, setOpen] = React.useState(true)
 
   const categoryOptions = React.useMemo(() => {
     const used = attributes.map((a) => a.category)
@@ -574,7 +598,15 @@ function AttributesSection({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle className="text-base">Custom Attributes</CardTitle>
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 items-center gap-2"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+        >
+          <CardTitle className="text-base">Custom Attributes</CardTitle>
+          <ChevronDown className={`size-4 shrink-0 text-muted-foreground transition-transform ${open ? '' : '-rotate-90'}`} />
+        </button>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button variant="outline" size="sm" onClick={openAddDialog}>
@@ -634,35 +666,37 @@ function AttributesSection({
           </DialogContent>
         </Dialog>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
-        {!loading && attributes.length === 0 && (
-          <p className="text-sm text-muted-foreground">No custom attributes yet — add sizes, preferences, or anything else.</p>
-        )}
-        {Array.from(grouped.entries()).map(([category, items]) => (
-          <div key={category} className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">{category}</p>
-            <div className="space-y-1">
-              {items.map((attr) => (
-                <div key={attr.id} className="flex items-center justify-between rounded-md border px-3 py-2">
-                  <div className="min-w-0">
-                    <span className="font-medium">{attr.label}</span>
-                    <span className="text-muted-foreground"> — {attr.value}</span>
+      {open && (
+        <CardContent className="space-y-4">
+          {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
+          {!loading && attributes.length === 0 && (
+            <p className="text-sm text-muted-foreground">No custom attributes yet — add sizes, preferences, or anything else.</p>
+          )}
+          {Array.from(grouped.entries()).map(([category, items]) => (
+            <div key={category} className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">{category}</p>
+              <div className="space-y-1">
+                {items.map((attr) => (
+                  <div key={attr.id} className="flex items-center justify-between rounded-md border px-3 py-2">
+                    <div className="min-w-0">
+                      <span className="font-medium">{attr.label}</span>
+                      <span className="text-muted-foreground"> — {attr.value}</span>
+                    </div>
+                    <div className="flex shrink-0 gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(attr)} aria-label={`Edit ${attr.label}`}>
+                        <Pencil className="size-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => void handleDelete(attr.id)} aria-label={`Delete ${attr.label}`}>
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex shrink-0 gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => openEditDialog(attr)} aria-label={`Edit ${attr.label}`}>
-                      <Pencil className="size-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => void handleDelete(attr.id)} aria-label={`Delete ${attr.label}`}>
-                      <Trash2 className="size-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
-      </CardContent>
+          ))}
+        </CardContent>
+      )}
     </Card>
   )
 }
