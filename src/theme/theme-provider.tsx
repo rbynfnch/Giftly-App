@@ -8,12 +8,21 @@ export const PALETTES = [
 export type Palette = (typeof PALETTES)[number]['id']
 export type Mode = 'light' | 'dark' | 'system'
 
+// Automatic, occasion-driven overrides — not user-selectable from the
+// palette switcher. When the occasion switcher in the header has a
+// Christmas or birthday occasion selected, the whole app re-skins to a
+// matching festive palette; any other occasion (or none selected) leaves
+// the user's chosen palette alone.
+export type OccasionPaletteOverride = 'christmas' | 'birthday'
+
 type ThemeContextValue = {
   palette: Palette
   setPalette: (palette: Palette) => void
   mode: Mode
   setMode: (mode: Mode) => void
   resolvedMode: 'light' | 'dark'
+  occasionOverride: OccasionPaletteOverride | null
+  setOccasionOverride: (override: OccasionPaletteOverride | null) => void
 }
 
 const ThemeContext = React.createContext<ThemeContextValue | null>(null)
@@ -38,6 +47,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [systemPrefersDark, setSystemPrefersDark] = React.useState(
     () => window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false,
   )
+  const [occasionOverride, setOccasionOverride] = React.useState<OccasionPaletteOverride | null>(null)
 
   React.useEffect(() => {
     const mql = window.matchMedia('(prefers-color-scheme: dark)')
@@ -50,9 +60,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     const root = document.documentElement
-    root.dataset.palette = palette
+    root.dataset.palette = occasionOverride ?? palette
     root.classList.toggle('dark', resolvedMode === 'dark')
-  }, [palette, resolvedMode])
+  }, [palette, resolvedMode, occasionOverride])
 
   const setPalette = React.useCallback((next: Palette) => {
     setPaletteState(next)
@@ -73,8 +83,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const value = React.useMemo(
-    () => ({ palette, setPalette, mode, setMode, resolvedMode }),
-    [palette, setPalette, mode, setMode, resolvedMode],
+    () => ({ palette, setPalette, mode, setMode, resolvedMode, occasionOverride, setOccasionOverride }),
+    [palette, setPalette, mode, setMode, resolvedMode, occasionOverride],
   )
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>

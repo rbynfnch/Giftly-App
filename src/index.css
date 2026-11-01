@@ -132,6 +132,112 @@
   --sidebar-ring: oklch(0.75 0.15 322);
 }
 
+/*
+ * Occasion overrides — not in the palette switcher. Applied automatically
+ * by OccasionThemeSync while a Christmas or birthday occasion is selected
+ * in the header switcher; everything else keeps the chosen palette above.
+ */
+
+/* Occasion: Christmas — holly green + berry red */
+[data-palette='christmas'] {
+  --primary: oklch(0.38 0.13 145);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.95 0.02 145);
+  --secondary-foreground: oklch(0.26 0.04 145);
+  --muted: oklch(0.96 0.015 145);
+  --muted-foreground: oklch(0.5 0.02 145);
+  --accent: oklch(0.85 0.09 25);
+  --accent-foreground: oklch(0.28 0.12 25);
+  --border: oklch(0.9 0.02 145);
+  --input: oklch(0.9 0.02 145);
+  --ring: oklch(0.38 0.13 145);
+  --sidebar: oklch(0.97 0.015 145);
+  --sidebar-border: oklch(0.9 0.02 145);
+  --sidebar-primary: oklch(0.38 0.13 145);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.9 0.06 25);
+  --sidebar-accent-foreground: oklch(0.28 0.12 25);
+  --sidebar-ring: oklch(0.38 0.13 145);
+}
+
+.dark[data-palette='christmas'] {
+  --background: oklch(0.15 0.02 145);
+  --foreground: oklch(0.96 0 0);
+  --card: oklch(0.2 0.02 145);
+  --card-foreground: oklch(0.96 0 0);
+  --popover: oklch(0.2 0.02 145);
+  --popover-foreground: oklch(0.96 0 0);
+  --secondary: oklch(0.27 0.03 145);
+  --secondary-foreground: oklch(0.96 0 0);
+  --muted: oklch(0.27 0.03 145);
+  --muted-foreground: oklch(0.68 0.02 145);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 18%);
+  --primary: oklch(0.68 0.15 145);
+  --primary-foreground: oklch(0.14 0.02 145);
+  --accent: oklch(0.68 0.19 25);
+  --accent-foreground: oklch(0.16 0.04 25);
+  --ring: oklch(0.68 0.15 145);
+  --sidebar: oklch(0.2 0.02 145);
+  --sidebar-foreground: oklch(0.96 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-primary: oklch(0.68 0.15 145);
+  --sidebar-primary-foreground: oklch(0.14 0.02 145);
+  --sidebar-accent: oklch(0.32 0.06 25);
+  --sidebar-accent-foreground: oklch(0.92 0.04 25);
+  --sidebar-ring: oklch(0.68 0.15 145);
+}
+
+/* Occasion: Birthday — party purple + teal */
+[data-palette='birthday'] {
+  --primary: oklch(0.46 0.17 300);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.95 0.02 300);
+  --secondary-foreground: oklch(0.26 0.04 300);
+  --muted: oklch(0.96 0.01 300);
+  --muted-foreground: oklch(0.52 0.02 300);
+  --accent: oklch(0.82 0.1 195);
+  --accent-foreground: oklch(0.22 0.06 195);
+  --border: oklch(0.9 0.01 300);
+  --input: oklch(0.9 0.01 300);
+  --ring: oklch(0.46 0.17 300);
+  --sidebar: oklch(0.98 0.01 300);
+  --sidebar-border: oklch(0.91 0.01 300);
+  --sidebar-primary: oklch(0.46 0.17 300);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.88 0.07 195);
+  --sidebar-accent-foreground: oklch(0.22 0.06 195);
+  --sidebar-ring: oklch(0.46 0.17 300);
+}
+
+.dark[data-palette='birthday'] {
+  --background: oklch(0.17 0.015 300);
+  --foreground: oklch(0.96 0 0);
+  --card: oklch(0.22 0.02 300);
+  --card-foreground: oklch(0.96 0 0);
+  --popover: oklch(0.22 0.02 300);
+  --popover-foreground: oklch(0.96 0 0);
+  --secondary: oklch(0.28 0.02 300);
+  --secondary-foreground: oklch(0.96 0 0);
+  --muted: oklch(0.28 0.02 300);
+  --muted-foreground: oklch(0.68 0.02 300);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 18%);
+  --primary: oklch(0.72 0.16 300);
+  --primary-foreground: oklch(0.16 0.02 300);
+  --accent: oklch(0.72 0.11 195);
+  --accent-foreground: oklch(0.16 0.04 195);
+  --ring: oklch(0.72 0.16 300);
+  --sidebar: oklch(0.22 0.02 300);
+  --sidebar-foreground: oklch(0.96 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-primary: oklch(0.72 0.16 300);
+  --sidebar-primary-foreground: oklch(0.16 0.02 300);
+  --sidebar-accent: oklch(0.32 0.05 195);
+  --sidebar-accent-foreground: oklch(0.9 0.04 195);
+  --sidebar-ring: oklch(0.72 0.16 300);
+}
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

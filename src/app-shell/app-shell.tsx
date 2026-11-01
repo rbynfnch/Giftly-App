@@ -5,6 +5,7 @@ import { UserMenu } from '@/app-shell/user-menu'
 import { NAV_ITEMS } from '@/app-shell/nav-items'
 import { branding } from '@/config/branding'
 import { cn } from '@/lib/utils'
+import { OccasionThemeSync } from '@/occasions/occasion-theme-sync'
 
 function NavItems({ orientation }: { orientation: 'horizontal' | 'vertical' }) {
   return (
@@ -41,6 +42,7 @@ function NavItems({ orientation }: { orientation: 'horizontal' | 'vertical' }) {
 export function AppShell() {
   return (
     <div className="flex min-h-svh flex-col md:flex-row">
+      <OccasionThemeSync />
       {/* Desktop sidebar */}
       <aside className="hidden w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
         <div className="px-4 py-5 text-lg font-semibold text-sidebar-foreground">{branding.appName}</div>
