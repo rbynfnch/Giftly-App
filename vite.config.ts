@@ -6,9 +6,19 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { branding } from './src/config/branding.ts'
 
 // https://vite.dev/config/
+// Oct 1 - Dec 31 gets the red/green Christmas icon set; the rest of the
+// year gets the default blue/yellow one. Checked at build time, so the
+// installed app icon reflects whichever season the app was last deployed
+// in - picked up automatically whenever a new deploy ships on or after
+// the Oct 1 / Jan 1 boundary.
+function seasonalIconSuffix(now = new Date()): '' | '-christmas' {
+  return now.getMonth() >= 9 ? '-christmas' : ''
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_')
   const supabaseHost = env.VITE_SUPABASE_URL ? new URL(env.VITE_SUPABASE_URL).hostname : undefined
+  const iconSuffix = seasonalIconSuffix()
 
   return {
     plugins: [
@@ -26,9 +36,9 @@ export default defineConfig(({ mode }) => {
           start_url: '/',
           scope: '/',
           icons: [
-            { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-            { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
-            { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+            { src: `/icon-192${iconSuffix}.png`, sizes: '192x192', type: 'image/png' },
+            { src: `/icon-512${iconSuffix}.png`, sizes: '512x512', type: 'image/png' },
+            { src: `/icon-512${iconSuffix}.png`, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
           ],
           // Lets an installed Giftly PWA appear in the OS share sheet, so
           // sharing a link from another app (e.g. a product page, a
