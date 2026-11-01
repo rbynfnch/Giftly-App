@@ -33,6 +33,7 @@ type PersonAttribute = Database['public']['Tables']['person_attributes']['Row']
 type Occasion = Database['public']['Tables']['occasions']['Row']
 type GiftRow = Database['public']['Tables']['gifts']['Row']
 type GiftBundle = Database['public']['Tables']['gift_bundles']['Row']
+type Group = Database['public']['Tables']['groups']['Row']
 
 const DEFAULT_CATEGORIES = ['Clothing Sizes', 'Preferences']
 
@@ -50,6 +51,7 @@ export function PersonProfilePage() {
   const [bundles, setBundles] = React.useState<GiftBundle[]>([])
   const [occasions, setOccasions] = React.useState<Occasion[]>([])
   const [giftsLoading, setGiftsLoading] = React.useState(true)
+  const [groups, setGroups] = React.useState<Group[]>([])
 
   const loadPerson = React.useCallback(() => {
     if (!id) return
@@ -114,11 +116,22 @@ export function PersonProfilePage() {
       .then(({ data }) => setOccasions(data ?? []))
   }, [person])
 
+  const loadGroups = React.useCallback(() => {
+    if (!person) return
+    supabase
+      .from('groups')
+      .select('*')
+      .eq('network_id', person.network_id)
+      .order('name', { ascending: true })
+      .then(({ data }) => setGroups(data ?? []))
+  }, [person])
+
   React.useEffect(loadPerson, [loadPerson])
   React.useEffect(loadAttributes, [loadAttributes])
   React.useEffect(loadGifts, [loadGifts])
   React.useEffect(loadBundles, [loadBundles])
   React.useEffect(loadOccasions, [loadOccasions])
+  React.useEffect(loadGroups, [loadGroups])
 
   if (loading) return <p className="text-sm text-muted-foreground">Loading…</p>
   if (error || !person) {
@@ -144,6 +157,9 @@ export function PersonProfilePage() {
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-2xl font-semibold">{person.full_name}</h1>
           {person.relationship && <p className="text-muted-foreground">{person.relationship}</p>}
+          {person.group_id && (
+            <p className="text-sm text-muted-foreground">{groups.find((g) => g.id === person.group_id)?.name ?? 'Group'}</p>
+          )}
           {person.birthday && (
             <p className="text-sm text-muted-foreground">
               {formatMonthDay(person.birthday)}
@@ -153,7 +169,7 @@ export function PersonProfilePage() {
             </p>
           )}
         </div>
-        <EditPersonDialog person={person} onSaved={setPerson} />
+        <EditPersonDialog person={person} groups={groups} onSaved={setPerson} onGroupsChange={loadGroups} />
       </div>
 
       {person.notes && (
@@ -241,28 +257,57 @@ function AvatarUploader({ person, onUploaded }: { person: Person; onUploaded: (u
   )
 }
 
-type PersonFormValues = { full_name: string; relationship: string; birthday: string; notes: string }
+type PersonFormValues = { full_name: string; relationship: string; birthday: string; notes: string; groupName: string }
 
-function EditPersonDialog({ person, onSaved }: { person: Person; onSaved: (person: Person) => void }) {
+function EditPersonDialog({
+  person,
+  groups,
+  onSaved,
+  onGroupsChange,
+}: {
+  person: Person
+  groups: Group[]
+  onSaved: (person: Person) => void
+  onGroupsChange: () => void
+}) {
+  const { user } = useAuth()
   const [open, setOpen] = React.useState(false)
-  const [form, setForm] = React.useState<PersonFormValues>({
-    full_name: person.full_name,
-    relationship: person.relationship ?? '',
-    birthday: person.birthday ?? '',
-    notes: person.notes ?? '',
-  })
+  const [form, setForm] = React.useState<PersonFormValues>(() => formFromPerson(person, groups))
   const [error, setError] = React.useState<string | null>(null)
   const [saving, setSaving] = React.useState(false)
 
+  function formFromPerson(p: Person, gs: Group[]): PersonFormValues {
+    return {
+      full_name: p.full_name,
+      relationship: p.relationship ?? '',
+      birthday: p.birthday ?? '',
+      notes: p.notes ?? '',
+      groupName: gs.find((g) => g.id === p.group_id)?.name ?? '',
+    }
+  }
+
   function openDialog() {
-    setForm({
-      full_name: person.full_name,
-      relationship: person.relationship ?? '',
-      birthday: person.birthday ?? '',
-      notes: person.notes ?? '',
-    })
+    setForm(formFromPerson(person, groups))
     setError(null)
     setOpen(true)
+  }
+
+  async function resolveGroupId(): Promise<string | null> {
+    const name = form.groupName.trim()
+    if (!name) return null
+
+    const existing = groups.find((g) => g.name.toLowerCase() === name.toLowerCase())
+    if (existing) return existing.id
+
+    if (!user) throw new Error('Not signed in.')
+    const { data, error } = await supabase
+      .from('groups')
+      .insert({ network_id: person.network_id, name, created_by: user.id })
+      .select('id')
+      .single()
+    if (error || !data) throw error ?? new Error('Could not create group.')
+    onGroupsChange()
+    return data.id
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -279,25 +324,29 @@ function EditPersonDialog({ person, onSaved }: { person: Person; onSaved: (perso
 
     setSaving(true)
     setError(null)
-    const { data, error } = await supabase
-      .from('people')
-      .update({
-        full_name: fullName,
-        relationship: form.relationship.trim() || null,
-        birthday: form.birthday || null,
-        notes: form.notes.trim() || null,
-      })
-      .eq('id', person.id)
-      .select('*')
-      .single()
-    setSaving(false)
 
-    if (error || !data) {
-      setError(error?.message ?? 'Something went wrong.')
-      return
+    try {
+      const groupId = await resolveGroupId()
+      const { data, error } = await supabase
+        .from('people')
+        .update({
+          full_name: fullName,
+          relationship: form.relationship.trim() || null,
+          birthday: form.birthday || null,
+          notes: form.notes.trim() || null,
+          group_id: groupId,
+        })
+        .eq('id', person.id)
+        .select('*')
+        .single()
+      if (error || !data) throw error ?? new Error('Something went wrong.')
+      onSaved(data)
+      setOpen(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.')
+    } finally {
+      setSaving(false)
     }
-    onSaved(data)
-    setOpen(false)
   }
 
   return (
@@ -339,6 +388,22 @@ function EditPersonDialog({ person, onSaved }: { person: Person; onSaved: (perso
                 value={form.birthday}
                 onChange={(e) => setForm((f) => ({ ...f, birthday: e.target.value }))}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_group">Group (optional)</Label>
+              <Input
+                id="edit_group"
+                list="person-group-names"
+                placeholder="e.g. Family, Coworkers..."
+                value={form.groupName}
+                onChange={(e) => setForm((f) => ({ ...f, groupName: e.target.value }))}
+              />
+              <datalist id="person-group-names">
+                {groups.map((g) => (
+                  <option key={g.id} value={g.name} />
+                ))}
+              </datalist>
+              <p className="text-xs text-muted-foreground">Type an existing group or a new one — used for group budgets on occasions.</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit_notes">Notes</Label>
