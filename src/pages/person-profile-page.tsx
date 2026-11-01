@@ -38,7 +38,7 @@ import { supabase } from '@/lib/supabase'
 import { getInitials } from '@/lib/utils'
 import type { Database } from '@/lib/database.types'
 import { GiftDialog } from '@/gifts/gift-dialog'
-import { GIFT_STATUS_BADGE_CLASS, GIFT_STATUS_LABELS } from '@/gifts/gift-status'
+import { GiftStatusBadge } from '@/gifts/gift-status-badge'
 
 type Person = Database['public']['Tables']['people']['Row']
 type PersonAttribute = Database['public']['Tables']['person_attributes']['Row']
@@ -757,7 +757,7 @@ function GiftsSection({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="font-medium">{gift.title}</span>
-            <Badge className={GIFT_STATUS_BADGE_CLASS[gift.status]}>{GIFT_STATUS_LABELS[gift.status]}</Badge>
+            <GiftStatusBadge giftId={gift.id} status={gift.status} onChanged={onChange} />
             {occasion && (
               <Badge variant="outline" className="text-muted-foreground">
                 {occasion.name}

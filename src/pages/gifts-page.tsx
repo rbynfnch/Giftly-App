@@ -11,7 +11,8 @@ import { formatMoney } from '@/lib/money'
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
 import { GiftDialog } from '@/gifts/gift-dialog'
-import { GIFT_STATUSES, GIFT_STATUS_BADGE_CLASS, GIFT_STATUS_LABELS, isSpentStatus } from '@/gifts/gift-status'
+import { GIFT_STATUSES, GIFT_STATUS_LABELS, isSpentStatus } from '@/gifts/gift-status'
+import { GiftStatusBadge } from '@/gifts/gift-status-badge'
 
 type GiftRow = Database['public']['Tables']['gifts']['Row']
 type Person = Database['public']['Tables']['people']['Row']
@@ -28,6 +29,7 @@ function GiftRowView({
   bundle,
   onEdit,
   onDelete,
+  onStatusChanged,
 }: {
   gift: GiftRow
   person: Person | undefined
@@ -35,13 +37,14 @@ function GiftRowView({
   bundle: GiftBundle | undefined
   onEdit: (gift: GiftRow) => void
   onDelete: (id: string) => void
+  onStatusChanged: () => void
 }) {
   return (
     <div className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="font-medium">{gift.title}</span>
-          <Badge className={GIFT_STATUS_BADGE_CLASS[gift.status]}>{GIFT_STATUS_LABELS[gift.status]}</Badge>
+          <GiftStatusBadge giftId={gift.id} status={gift.status} onChanged={onStatusChanged} />
           {occasion && (
             <Badge variant="outline" className="text-muted-foreground">
               {occasion.name}
@@ -270,6 +273,7 @@ export function GiftsPage() {
                       bundle={gift.bundle_id ? bundleById.get(gift.bundle_id) : undefined}
                       onEdit={openEdit}
                       onDelete={(id) => void handleDelete(id)}
+                      onStatusChanged={loadAll}
                     />
                   ))}
                 </div>
