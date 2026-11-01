@@ -17,6 +17,7 @@ type Occasion = Database['public']['Tables']['occasions']['Row']
 type Mode =
   | { kind: 'person'; person: Person; occasions: Occasion[]; bundles: GiftBundle[] }
   | { kind: 'occasion'; occasion: Occasion; people: Person[] }
+  | { kind: 'global'; people: Person[]; occasions: Occasion[] }
 
 type FormValues = {
   title: string
@@ -27,18 +28,33 @@ type FormValues = {
   personId: string
   occasionId: string
   bundleName: string
+  store: string
 }
 
-function emptyForm(mode: Mode): FormValues {
+// Best-effort guess at a store name from a product URL's hostname, e.g.
+// "https://www.amazon.com/..." -> "Amazon". Never blocks saving - just a
+// nicety the user can always override.
+function guessStoreFromUrl(url: string): string {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, '')
+    const name = host.split('.')[0]
+    return name.charAt(0).toUpperCase() + name.slice(1)
+  } catch {
+    return ''
+  }
+}
+
+function emptyForm(mode: Mode, initialValues?: { title?: string; url?: string }): FormValues {
   return {
-    title: '',
+    title: initialValues?.title ?? '',
     status: 'idea',
     price: '',
-    url: '',
+    url: initialValues?.url ?? '',
     notes: '',
     personId: mode.kind === 'occasion' ? (mode.people[0]?.id ?? '') : '',
     occasionId: '',
     bundleName: '',
+    store: initialValues?.url ? guessStoreFromUrl(initialValues.url) : '',
   }
 }
 
@@ -53,6 +69,7 @@ function formFromGift(gift: Gift, mode: Mode): FormValues {
     personId: gift.person_id,
     occasionId: gift.occasion_id ?? '',
     bundleName,
+    store: gift.store ?? '',
   }
 }
 
@@ -63,6 +80,8 @@ export function GiftDialog({
   userId,
   mode,
   gift,
+  initialValues,
+  storeOptions,
   onSaved,
 }: {
   open: boolean
@@ -71,15 +90,17 @@ export function GiftDialog({
   userId: string
   mode: Mode
   gift?: Gift
+  initialValues?: { title?: string; url?: string }
+  storeOptions?: string[]
   onSaved: () => void
 }) {
-  const [form, setForm] = React.useState<FormValues>(() => (gift ? formFromGift(gift, mode) : emptyForm(mode)))
+  const [form, setForm] = React.useState<FormValues>(() => (gift ? formFromGift(gift, mode) : emptyForm(mode, initialValues)))
   const [error, setError] = React.useState<string | null>(null)
   const [saving, setSaving] = React.useState(false)
 
   React.useEffect(() => {
     if (open) {
-      setForm(gift ? formFromGift(gift, mode) : emptyForm(mode))
+      setForm(gift ? formFromGift(gift, mode) : emptyForm(mode, initialValues))
       setError(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -139,6 +160,7 @@ export function GiftDialog({
         price,
         url: form.url.trim() || null,
         notes: form.notes.trim() || null,
+        store: form.store.trim() || null,
       }
 
       const { error } = gift
@@ -175,15 +197,17 @@ export function GiftDialog({
               />
             </div>
 
-            {mode.kind === 'occasion' && (
+            {(mode.kind === 'occasion' || mode.kind === 'global') && (
               <div className="space-y-2">
                 <Label htmlFor="gift_person">For</Label>
                 <select
                   id="gift_person"
+                  required
                   className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
                   value={form.personId}
                   onChange={(e) => setForm((f) => ({ ...f, personId: e.target.value }))}
                 >
+                  {mode.kind === 'global' && <option value="">Select a person</option>}
                   {mode.people.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.full_name}
@@ -229,11 +253,33 @@ export function GiftDialog({
                 type="url"
                 placeholder="https://..."
                 value={form.url}
-                onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    url: e.target.value,
+                    store: f.store ? f.store : guessStoreFromUrl(e.target.value),
+                  }))
+                }
               />
             </div>
 
-            {mode.kind === 'person' && (
+            <div className="space-y-2">
+              <Label htmlFor="gift_store">Store (optional)</Label>
+              <Input
+                id="gift_store"
+                list="gift-store-names"
+                placeholder="e.g. Amazon"
+                value={form.store}
+                onChange={(e) => setForm((f) => ({ ...f, store: e.target.value }))}
+              />
+              <datalist id="gift-store-names">
+                {(storeOptions ?? []).map((s) => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
+            </div>
+
+            {(mode.kind === 'person' || mode.kind === 'global') && (
               <div className="space-y-2">
                 <Label htmlFor="gift_occasion">Occasion (optional)</Label>
                 <select

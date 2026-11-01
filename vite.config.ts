@@ -30,6 +30,20 @@ export default defineConfig(({ mode }) => {
             { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
             { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
           ],
+          // Lets an installed Giftly PWA appear in the OS share sheet, so
+          // sharing a link from another app (e.g. a product page, a
+          // Pinterest pin) hands off title/url to the Gifts tab to
+          // prefill a new gift. GET + no files, so no service worker
+          // changes are needed - it's just a normal navigation.
+          share_target: {
+            action: '/gifts',
+            method: 'GET',
+            params: {
+              title: 'title',
+              text: 'text',
+              url: 'url',
+            },
+          },
         },
         workbox: {
           // V1 is read-caching only: no offline write queue, so mutating

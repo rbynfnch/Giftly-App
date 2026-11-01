@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from '@/app-shell/app-shell'
 import { AuthProvider, useAuth } from '@/auth/auth-provider'
 import { SignInPage } from '@/auth/sign-in-page'
+import { GiftsPage } from '@/pages/gifts-page'
 import { HomePage } from '@/pages/home-page'
 import { MorePage } from '@/pages/more-page'
 import { OccasionDashboardPage } from '@/pages/occasion-dashboard-page'
@@ -70,10 +71,7 @@ export default function App() {
               <Route path="people/:id" element={<PersonProfilePage />} />
               <Route path="occasions" element={<OccasionsListPage />} />
               <Route path="occasions/:id" element={<OccasionDashboardPage />} />
-              <Route
-                path="gifts"
-                element={<PlaceholderPage title="Gifts" note="Gift tracking is coming in a later phase." />}
-              />
+              <Route path="gifts" element={<GiftsPage />} />
               <Route
                 path="shop"
                 element={<PlaceholderPage title="Shop" note="Shopping integrations are coming in a later phase." />}
