@@ -43,9 +43,11 @@ type PersonOccasionSummary = {
   budget: number | null
 }
 
-// Per person, per occasion they're a participant in: gift counts and spend
-// vs. their individual budget for that occasion (occasion_participants.budget
-// — not the occasion's overall shared budget, which isn't person-specific).
+// Per person, per occasion that actually has gifts listed for them (being a
+// participant with zero gifts added yet doesn't show): gift counts and
+// spend vs. their individual budget for that occasion
+// (occasion_participants.budget — not the occasion's overall shared
+// budget, which isn't person-specific).
 function buildPersonOccasionSummaries(
   occasions: Occasion[],
   participants: OccasionParticipant[],
@@ -57,6 +59,8 @@ function buildPersonOccasionSummaries(
     const occasionParticipants = participants.filter((p) => p.occasion_id === occasion.id)
     for (const participant of occasionParticipants) {
       const occasionGifts = gifts.filter((g) => g.person_id === participant.person_id && g.occasion_id === occasion.id)
+      if (occasionGifts.length === 0) continue
+
       const summary: PersonOccasionSummary = {
         occasionId: occasion.id,
         occasionName: occasion.name,
