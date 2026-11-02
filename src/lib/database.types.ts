@@ -194,6 +194,7 @@ export type Database = {
           url: string | null
           notes: string | null
           store: string | null
+          category: string | null
           created_at: string
           updated_at: string
         }
@@ -210,6 +211,7 @@ export type Database = {
           url?: string | null
           notes?: string | null
           store?: string | null
+          category?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -226,6 +228,7 @@ export type Database = {
           url?: string | null
           notes?: string | null
           store?: string | null
+          category?: string | null
           created_at?: string
           updated_at?: string
         }

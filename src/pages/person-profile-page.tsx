@@ -209,6 +209,8 @@ export function PersonProfilePage() {
           loadBundles()
         }}
       />
+
+      <GiftHistorySection gifts={gifts} occasions={occasions} />
     </div>
   )
 }
@@ -824,6 +826,10 @@ function GiftsSection({
 
   const occasionById = React.useMemo(() => new Map(occasions.map((o) => [o.id, o])), [occasions])
   const bundleById = React.useMemo(() => new Map(bundles.map((b) => [b.id, b])), [bundles])
+  const categoryOptions = React.useMemo(
+    () => Array.from(new Set(gifts.map((g) => g.category).filter((c): c is string => !!c))).sort(),
+    [gifts],
+  )
 
   const ungrouped = gifts.filter((g) => !g.bundle_id)
   const grouped = React.useMemo(() => {
@@ -922,8 +928,88 @@ function GiftsSection({
           userId={user.id}
           mode={{ kind: 'person', person, occasions, bundles }}
           gift={editingGift}
+          categoryOptions={categoryOptions}
           onSaved={onChange}
         />
+      )}
+    </Card>
+  )
+}
+
+// Read-only record of what's actually been given, as opposed to the Gifts
+// section above (which tracks everything still in progress). Filterable by
+// category so you can scan "what has this person gotten in Books before"
+// without wading through ideas and in-progress gifts.
+function GiftHistorySection({ gifts, occasions }: { gifts: GiftRow[]; occasions: Occasion[] }) {
+  const [open, setOpen] = React.useState(true)
+  const [categoryFilter, setCategoryFilter] = React.useState<string>('all')
+
+  const occasionById = React.useMemo(() => new Map(occasions.map((o) => [o.id, o])), [occasions])
+  const history = React.useMemo(() => gifts.filter((g) => g.status === 'gifted'), [gifts])
+  const categories = React.useMemo(
+    () => Array.from(new Set(history.map((g) => g.category).filter((c): c is string => !!c))).sort(),
+    [history],
+  )
+  const filtered = categoryFilter === 'all' ? history : history.filter((g) => g.category === categoryFilter)
+
+  return (
+    <Card>
+      <CardHeader>
+        <button
+          type="button"
+          className="flex w-full items-center justify-between"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+        >
+          <CardTitle className="text-base">Gift History</CardTitle>
+          <ChevronDown className={`size-4 text-muted-foreground transition-transform ${open ? '' : '-rotate-90'}`} />
+        </button>
+      </CardHeader>
+      {open && (
+        <CardContent className="space-y-3">
+          {history.length === 0 && <p className="text-sm text-muted-foreground">No gifted history yet.</p>}
+
+          {history.length > 0 && (
+            <>
+              <div className="flex flex-wrap gap-2">
+                <Button variant={categoryFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setCategoryFilter('all')}>
+                  All
+                </Button>
+                {categories.map((c) => (
+                  <Button key={c} variant={categoryFilter === c ? 'default' : 'outline'} size="sm" onClick={() => setCategoryFilter(c)}>
+                    {c}
+                  </Button>
+                ))}
+              </div>
+
+              {filtered.length === 0 && <p className="text-sm text-muted-foreground">No gifts in this category yet.</p>}
+
+              <div className="space-y-1">
+                {filtered.map((gift) => {
+                  const occasion = gift.occasion_id ? occasionById.get(gift.occasion_id) : undefined
+                  return (
+                    <div key={gift.id} className="rounded-md border px-3 py-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-medium">{gift.title}</span>
+                        {gift.category && (
+                          <Badge variant="outline" className="text-muted-foreground">
+                            {gift.category}
+                          </Badge>
+                        )}
+                        {occasion && (
+                          <Badge variant="outline" className="text-muted-foreground">
+                            {occasion.name}
+                          </Badge>
+                        )}
+                      </div>
+                      {gift.price !== null && <p className="mt-0.5 text-xs text-muted-foreground">{formatMoney(gift.price)}</p>}
+                    </div>
+                  )
+                })}
+              </div>
+            </>
+          )}
+        </CardContent>
       )}
     </Card>
   )

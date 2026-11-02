@@ -29,6 +29,7 @@ type FormValues = {
   occasionId: string
   bundleName: string
   store: string
+  category: string
 }
 
 // Best-effort guess at a store name from a product URL's hostname, e.g.
@@ -55,6 +56,7 @@ function emptyForm(mode: Mode, initialValues?: { title?: string; url?: string })
     occasionId: '',
     bundleName: '',
     store: initialValues?.url ? guessStoreFromUrl(initialValues.url) : '',
+    category: '',
   }
 }
 
@@ -70,6 +72,7 @@ function formFromGift(gift: Gift, mode: Mode): FormValues {
     occasionId: gift.occasion_id ?? '',
     bundleName,
     store: gift.store ?? '',
+    category: gift.category ?? '',
   }
 }
 
@@ -82,6 +85,7 @@ export function GiftDialog({
   gift,
   initialValues,
   storeOptions,
+  categoryOptions,
   onSaved,
 }: {
   open: boolean
@@ -92,6 +96,7 @@ export function GiftDialog({
   gift?: Gift
   initialValues?: { title?: string; url?: string }
   storeOptions?: string[]
+  categoryOptions?: string[]
   onSaved: () => void
 }) {
   const [form, setForm] = React.useState<FormValues>(() => (gift ? formFromGift(gift, mode) : emptyForm(mode, initialValues)))
@@ -161,6 +166,7 @@ export function GiftDialog({
         url: form.url.trim() || null,
         notes: form.notes.trim() || null,
         store: form.store.trim() || null,
+        category: form.category.trim() || null,
       }
 
       const { error } = gift
@@ -275,6 +281,22 @@ export function GiftDialog({
               <datalist id="gift-store-names">
                 {(storeOptions ?? []).map((s) => (
                   <option key={s} value={s} />
+                ))}
+              </datalist>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="gift_category">Category (optional)</Label>
+              <Input
+                id="gift_category"
+                list="gift-category-names"
+                placeholder="e.g. Books, Games, Clothes, Toys"
+                value={form.category}
+                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+              />
+              <datalist id="gift-category-names">
+                {(categoryOptions ?? []).map((c) => (
+                  <option key={c} value={c} />
                 ))}
               </datalist>
             </div>

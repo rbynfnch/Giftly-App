@@ -685,6 +685,10 @@ function GiftsSection({
 
   const personById = React.useMemo(() => new Map(participants.map((p) => [p.person_id, p.person])), [participants])
   const bundleById = React.useMemo(() => new Map(bundles.map((b) => [b.id, b])), [bundles])
+  const categoryOptions = React.useMemo(
+    () => Array.from(new Set(gifts.map((g) => g.category).filter((c): c is string => !!c))).sort(),
+    [gifts],
+  )
 
   const counts = React.useMemo(() => {
     const map = new Map<string, number>()
@@ -793,6 +797,7 @@ function GiftsSection({
           userId={user.id}
           mode={{ kind: 'occasion', occasion, people: participants.map((p) => p.person) }}
           gift={editingGift}
+          categoryOptions={categoryOptions}
           onSaved={onChange}
         />
       )}

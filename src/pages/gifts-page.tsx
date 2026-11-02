@@ -150,6 +150,10 @@ export function GiftsPage() {
     () => Array.from(new Set(gifts.map((g) => g.store).filter((s): s is string => !!s))).sort(),
     [gifts],
   )
+  const categoryOptions = React.useMemo(
+    () => Array.from(new Set(gifts.map((g) => g.category).filter((c): c is string => !!c))).sort(),
+    [gifts],
+  )
 
   const groups = React.useMemo(() => {
     if (groupBy === 'none') return [{ label: null as string | null, gifts: filteredGifts }]
@@ -297,6 +301,7 @@ export function GiftsPage() {
           gift={editingGift}
           initialValues={prefill}
           storeOptions={storeOptions}
+          categoryOptions={categoryOptions}
           onSaved={loadAll}
         />
       )}
