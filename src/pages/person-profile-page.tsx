@@ -385,14 +385,6 @@ function EditPersonDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit_relationship">Relationship</Label>
-              <Input
-                id="edit_relationship"
-                value={form.relationship}
-                onChange={(e) => setForm((f) => ({ ...f, relationship: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="edit_birthday">Birthday</Label>
               <Input
                 id="edit_birthday"
@@ -401,22 +393,32 @@ function EditPersonDialog({
                 onChange={(e) => setForm((f) => ({ ...f, birthday: e.target.value }))}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit_group">Group (optional)</Label>
-              <Input
-                id="edit_group"
-                list="person-group-names"
-                placeholder="e.g. Family, Coworkers..."
-                value={form.groupName}
-                onChange={(e) => setForm((f) => ({ ...f, groupName: e.target.value }))}
-              />
-              <datalist id="person-group-names">
-                {groups.map((g) => (
-                  <option key={g.id} value={g.name} />
-                ))}
-              </datalist>
-              <p className="text-xs text-muted-foreground">Type an existing group or a new one — used for group budgets on occasions.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="edit_relationship">Relationship</Label>
+                <Input
+                  id="edit_relationship"
+                  value={form.relationship}
+                  onChange={(e) => setForm((f) => ({ ...f, relationship: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_group">Group (optional)</Label>
+                <Input
+                  id="edit_group"
+                  list="person-group-names"
+                  placeholder="e.g. Family..."
+                  value={form.groupName}
+                  onChange={(e) => setForm((f) => ({ ...f, groupName: e.target.value }))}
+                />
+                <datalist id="person-group-names">
+                  {groups.map((g) => (
+                    <option key={g.id} value={g.name} />
+                  ))}
+                </datalist>
+              </div>
             </div>
+            <p className="-mt-2 text-xs text-muted-foreground">Group: type an existing one or a new one — used for group budgets on occasions.</p>
             <div className="space-y-2">
               <Label htmlFor="edit_notes">Notes</Label>
               <Textarea
