@@ -34,6 +34,7 @@ import { useAuth } from '@/auth/auth-provider'
 import { daysUntilNextBirthday, formatMonthDay, parseDateOnly } from '@/lib/date-utils'
 import { deletePersonAvatars, uploadPersonAvatar } from '@/lib/avatar-storage'
 import { formatMoney } from '@/lib/money'
+import { PERSON_COLOR_SWATCHES, personColorTint } from '@/lib/person-colors'
 import { supabase } from '@/lib/supabase'
 import { getInitials } from '@/lib/utils'
 import type { Database } from '@/lib/database.types'
@@ -269,7 +270,7 @@ function AvatarUploader({ person, onUploaded }: { person: Person; onUploaded: (u
   )
 }
 
-type PersonFormValues = { full_name: string; relationship: string; birthday: string; notes: string; groupName: string }
+type PersonFormValues = { full_name: string; relationship: string; birthday: string; notes: string; groupName: string; color: string }
 
 function EditPersonDialog({
   person,
@@ -295,6 +296,7 @@ function EditPersonDialog({
       birthday: p.birthday ?? '',
       notes: p.notes ?? '',
       groupName: gs.find((g) => g.id === p.group_id)?.name ?? '',
+      color: p.color ?? '',
     }
   }
 
@@ -347,6 +349,7 @@ function EditPersonDialog({
           birthday: form.birthday || null,
           notes: form.notes.trim() || null,
           group_id: groupId,
+          color: form.color || null,
         })
         .eq('id', person.id)
         .select('*')
@@ -419,6 +422,37 @@ function EditPersonDialog({
               </div>
             </div>
             <p className="-mt-2 text-xs text-muted-foreground">Group: type an existing one or a new one — used for group budgets on occasions.</p>
+            <div className="space-y-2">
+              <Label>Color</Label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, color: '' }))}
+                  aria-label="No color"
+                  aria-pressed={form.color === ''}
+                  className={`flex size-8 items-center justify-center rounded-full border-2 ${
+                    form.color === '' ? 'border-ring' : 'border-transparent'
+                  }`}
+                >
+                  <X className="size-4 text-muted-foreground" />
+                </button>
+                {PERSON_COLOR_SWATCHES.map((swatch) => (
+                  <button
+                    key={swatch}
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, color: swatch }))}
+                    aria-label={`Color ${swatch}`}
+                    aria-pressed={form.color === swatch}
+                    className={`flex size-8 items-center justify-center rounded-full border-2 ${
+                      form.color === swatch ? 'border-ring' : 'border-transparent'
+                    }`}
+                  >
+                    <span className="size-6 rounded-full shadow-sm" style={{ backgroundColor: swatch }} />
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">Tints {person.full_name}'s gift cards so you can spot them at a glance.</p>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="edit_notes">Notes</Label>
               <Textarea
@@ -720,18 +754,23 @@ function AttributesSection({
 function GiftRowView({
   gift,
   occasion,
+  color,
   onEdit,
   onDelete,
   onStatusChanged,
 }: {
   gift: GiftRow
   occasion: Occasion | undefined
+  color: string | null
   onEdit: (gift: GiftRow) => void
   onDelete: (id: string) => void
   onStatusChanged: () => void
 }) {
   return (
-    <div className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+    <div
+      className="flex items-center justify-between gap-2 rounded-md border px-3 py-2"
+      style={{ backgroundColor: personColorTint(color) }}
+    >
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="font-medium">{gift.title}</span>
@@ -847,6 +886,7 @@ function GiftsSection({
                     key={g.id}
                     gift={g}
                     occasion={g.occasion_id ? occasionById.get(g.occasion_id) : undefined}
+                    color={person.color}
                     onEdit={openEdit}
                     onDelete={(id) => void handleDelete(id)}
                     onStatusChanged={onChange}
@@ -864,6 +904,7 @@ function GiftsSection({
                 key={g.id}
                 gift={g}
                 occasion={g.occasion_id ? occasionById.get(g.occasion_id) : undefined}
+                color={person.color}
                 onEdit={openEdit}
                 onDelete={(id) => void handleDelete(id)}
                 onStatusChanged={onChange}

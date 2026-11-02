@@ -109,6 +109,7 @@ export type Database = {
           notes: string | null
           avatar_url: string | null
           interests: string[]
+          color: string | null
           created_at: string
           updated_at: string
         }
@@ -124,6 +125,7 @@ export type Database = {
           notes?: string | null
           avatar_url?: string | null
           interests?: string[]
+          color?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -139,6 +141,7 @@ export type Database = {
           notes?: string | null
           avatar_url?: string | null
           interests?: string[]
+          color?: string | null
           created_at?: string
           updated_at?: string
         }

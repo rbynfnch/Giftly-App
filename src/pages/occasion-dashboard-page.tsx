@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label'
 import { useAuth } from '@/auth/auth-provider'
 import { addYears, formatMonthDay, parseDateOnly } from '@/lib/date-utils'
 import { formatMoney as money } from '@/lib/money'
+import { personColorTint } from '@/lib/person-colors'
 import { supabase } from '@/lib/supabase'
 import { getInitials } from '@/lib/utils'
 import type { Database } from '@/lib/database.types'
@@ -744,7 +745,11 @@ function GiftsSection({
             const person = personById.get(gift.person_id)
             const bundle = gift.bundle_id ? bundleById.get(gift.bundle_id) : undefined
             return (
-              <div key={gift.id} className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+              <div
+                key={gift.id}
+                className="flex items-center justify-between gap-2 rounded-md border px-3 py-2"
+                style={{ backgroundColor: personColorTint(person?.color) }}
+              >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="font-medium">{gift.title}</span>

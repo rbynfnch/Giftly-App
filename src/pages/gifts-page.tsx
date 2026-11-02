@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { useAuth } from '@/auth/auth-provider'
 import { usePrimaryNetwork } from '@/hooks/use-primary-network'
 import { formatMoney } from '@/lib/money'
+import { personColorTint } from '@/lib/person-colors'
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
 import { GiftDialog } from '@/gifts/gift-dialog'
@@ -40,7 +41,10 @@ function GiftRowView({
   onStatusChanged: () => void
 }) {
   return (
-    <div className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+    <div
+      className="flex items-center justify-between gap-2 rounded-md border px-3 py-2"
+      style={{ backgroundColor: personColorTint(person?.color) }}
+    >
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="font-medium">{gift.title}</span>
