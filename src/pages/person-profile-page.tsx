@@ -715,6 +715,53 @@ function AttributesSection({
   )
 }
 
+function GiftRowView({
+  gift,
+  occasion,
+  onEdit,
+  onDelete,
+  onStatusChanged,
+}: {
+  gift: GiftRow
+  occasion: Occasion | undefined
+  onEdit: (gift: GiftRow) => void
+  onDelete: (id: string) => void
+  onStatusChanged: () => void
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="font-medium">{gift.title}</span>
+          <GiftStatusBadge giftId={gift.id} status={gift.status} onChanged={onStatusChanged} />
+          {occasion && (
+            <Badge variant="outline" className="text-muted-foreground">
+              {occasion.name}
+            </Badge>
+          )}
+        </div>
+        <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+          {gift.price !== null && <span>{formatMoney(gift.price)}</span>}
+          {gift.url && (
+            <a href={gift.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 hover:underline">
+              <ExternalLink className="size-3" />
+              Link
+            </a>
+          )}
+        </div>
+      </div>
+      <div className="flex shrink-0 gap-1">
+        <Button variant="ghost" size="icon" onClick={() => onEdit(gift)} aria-label={`Edit ${gift.title}`}>
+          <Pencil className="size-3.5" />
+        </Button>
+        <Button variant="ghost" size="icon" onClick={() => onDelete(gift.id)} aria-label={`Delete ${gift.title}`}>
+          <Trash2 className="size-3.5" />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 function GiftsSection({
   person,
   gifts,
@@ -764,42 +811,6 @@ function GiftsSection({
     if (!error) onChange()
   }
 
-  function GiftRowView({ gift }: { gift: GiftRow }) {
-    const occasion = gift.occasion_id ? occasionById.get(gift.occasion_id) : undefined
-    return (
-      <div className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="font-medium">{gift.title}</span>
-            <GiftStatusBadge giftId={gift.id} status={gift.status} onChanged={onChange} />
-            {occasion && (
-              <Badge variant="outline" className="text-muted-foreground">
-                {occasion.name}
-              </Badge>
-            )}
-          </div>
-          <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
-            {gift.price !== null && <span>{formatMoney(gift.price)}</span>}
-            {gift.url && (
-              <a href={gift.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 hover:underline">
-                <ExternalLink className="size-3" />
-                Link
-              </a>
-            )}
-          </div>
-        </div>
-        <div className="flex shrink-0 gap-1">
-          <Button variant="ghost" size="icon" onClick={() => openEdit(gift)} aria-label={`Edit ${gift.title}`}>
-            <Pencil className="size-3.5" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => void handleDelete(gift.id)} aria-label={`Delete ${gift.title}`}>
-            <Trash2 className="size-3.5" />
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -830,7 +841,14 @@ function GiftsSection({
               </div>
               <div className="space-y-1 border-l-2 pl-3">
                 {items.map((g) => (
-                  <GiftRowView key={g.id} gift={g} />
+                  <GiftRowView
+                    key={g.id}
+                    gift={g}
+                    occasion={g.occasion_id ? occasionById.get(g.occasion_id) : undefined}
+                    onEdit={openEdit}
+                    onDelete={(id) => void handleDelete(id)}
+                    onStatusChanged={onChange}
+                  />
                 ))}
               </div>
             </div>
@@ -840,7 +858,14 @@ function GiftsSection({
         {ungrouped.length > 0 && (
           <div className="space-y-1">
             {ungrouped.map((g) => (
-              <GiftRowView key={g.id} gift={g} />
+              <GiftRowView
+                key={g.id}
+                gift={g}
+                occasion={g.occasion_id ? occasionById.get(g.occasion_id) : undefined}
+                onEdit={openEdit}
+                onDelete={(id) => void handleDelete(id)}
+                onStatusChanged={onChange}
+              />
             ))}
           </div>
         )}
