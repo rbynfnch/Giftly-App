@@ -1,4 +1,4 @@
-import { ArrowLeft, Copy, ExternalLink, Gift as GiftIcon, Pencil, Plus, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, Copy, ExternalLink, Gift as GiftIcon, ListPlus, Pencil, Plus, Trash2, Users, X } from 'lucide-react'
 import * as React from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
@@ -664,6 +664,189 @@ function GroupBudgetRow({
   )
 }
 
+// Creates one placeholder "idea" gift per selected person per category in
+// one shot (e.g. 5 kids x Book/Tech/Clothing/Stocking Stuffer/Game = 25
+// gifts), titled after the category - fill in the real title/link/price
+// on each one later via the normal edit flow.
+function BulkAddGiftsDialog({
+  occasion,
+  participants,
+  userId,
+  categoryOptions,
+  onCreated,
+}: {
+  occasion: Occasion
+  participants: Participant[]
+  userId: string
+  categoryOptions: string[]
+  onCreated: () => void
+}) {
+  const [open, setOpen] = React.useState(false)
+  const [selectedPersonIds, setSelectedPersonIds] = React.useState<Set<string>>(new Set())
+  const [categories, setCategories] = React.useState<string[]>([])
+  const [categoryDraft, setCategoryDraft] = React.useState('')
+  const [saving, setSaving] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+
+  function openDialog() {
+    setSelectedPersonIds(new Set(participants.map((p) => p.person_id)))
+    setCategories([])
+    setCategoryDraft('')
+    setError(null)
+    setOpen(true)
+  }
+
+  function togglePerson(personId: string) {
+    setSelectedPersonIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(personId)) next.delete(personId)
+      else next.add(personId)
+      return next
+    })
+  }
+
+  function addCategories() {
+    const parts = categoryDraft
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean)
+    setCategoryDraft('')
+    if (parts.length === 0) return
+    setCategories((prev) => {
+      const existing = new Set(prev.map((c) => c.toLowerCase()))
+      const additions = parts.filter((part) => !existing.has(part.toLowerCase()))
+      return [...prev, ...additions]
+    })
+  }
+
+  function removeCategory(category: string) {
+    setCategories((prev) => prev.filter((c) => c !== category))
+  }
+
+  const totalToCreate = selectedPersonIds.size * categories.length
+
+  async function handleCreate() {
+    if (selectedPersonIds.size === 0 || categories.length === 0) {
+      setError('Select at least one person and one category.')
+      return
+    }
+
+    setSaving(true)
+    setError(null)
+
+    const rows = Array.from(selectedPersonIds).flatMap((personId) =>
+      categories.map((category) => ({
+        network_id: occasion.network_id,
+        person_id: personId,
+        occasion_id: occasion.id,
+        bundle_id: null,
+        created_by: userId,
+        title: category,
+        status: 'idea' as const,
+        price: null,
+        url: null,
+        notes: null,
+        store: null,
+        category,
+      })),
+    )
+
+    const { error } = await supabase.from('gifts').insert(rows)
+    setSaving(false)
+
+    if (error) {
+      setError(error.message)
+      return
+    }
+    setOpen(false)
+    onCreated()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" onClick={openDialog} disabled={participants.length === 0}>
+          <ListPlus />
+          Bulk add
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Bulk add gift ideas</DialogTitle>
+          <DialogDescription>
+            Creates one placeholder "Idea" gift per person per category — fill in the real title, link, and price on each
+            one later.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>People</Label>
+            <div className="max-h-40 space-y-1 overflow-y-auto">
+              {participants.map((p) => (
+                <label key={p.person_id} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={selectedPersonIds.has(p.person_id)}
+                    onChange={() => togglePerson(p.person_id)}
+                  />
+                  {p.person.full_name}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="bulk_categories">Categories</Label>
+            {categories.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {categories.map((c) => (
+                  <Badge key={c} variant="secondary">
+                    {c}
+                    <button type="button" onClick={() => removeCategory(c)} aria-label={`Remove ${c}`}>
+                      <X className="size-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Input
+                id="bulk_categories"
+                list="bulk-category-names"
+                placeholder="Book, Tech, Clothing, Stocking Stuffer, Game"
+                value={categoryDraft}
+                onChange={(e) => setCategoryDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    addCategories()
+                  }
+                }}
+              />
+              <datalist id="bulk-category-names">
+                {categoryOptions.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+              <Button type="button" variant="outline" onClick={addCategories} disabled={!categoryDraft.trim()}>
+                Add
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">Type one or more, separated by commas, and press Enter.</p>
+          </div>
+
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button type="button" onClick={() => void handleCreate()} disabled={saving || totalToCreate === 0}>
+            {saving ? 'Creating…' : `Create ${totalToCreate} gift${totalToCreate === 1 ? '' : 's'}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function GiftsSection({
   occasion,
   participants,
@@ -716,10 +899,21 @@ function GiftsSection({
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-base">Gifts</CardTitle>
-        <Button variant="outline" size="sm" onClick={openAdd} disabled={participants.length === 0}>
-          <Plus />
-          Add
-        </Button>
+        <div className="flex gap-2">
+          {user && (
+            <BulkAddGiftsDialog
+              occasion={occasion}
+              participants={participants}
+              userId={user.id}
+              categoryOptions={categoryOptions}
+              onCreated={onChange}
+            />
+          )}
+          <Button variant="outline" size="sm" onClick={openAdd} disabled={participants.length === 0}>
+            <Plus />
+            Add
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         {participants.length === 0 && (
